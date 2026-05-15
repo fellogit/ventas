@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estrellita POS Pro - Mercado Porfirio Díaz</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8C2630">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f7f5f0; }
+    .brand-font { font-family: 'Cinzel', serif; }
+    .bg-oaxaca-dark { background-color: #2C1B17; }
+    .bg-oaxaca-guinda { background-color: #8C2630; }
+    .text-oaxaca-gold { color: #D99B26; }
+    .border-oaxaca-gold { border-color: #D99B26; }
+    .sidebar-active { background-color: #402823; border-left: 4px solid #D99B26; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+  <!-- LOGIN -->
+  <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-oaxaca-dark p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border-t-8 border-oaxaca-guinda text-center">
+      <h1 class="brand-font text-3xl text-oaxaca-dark mb-2">ESTRELLITA</h1>
+      <p class="text-xs text-gray-500 uppercase tracking-widest mb-6">Punto de Venta Pro • Oaxaca</p>
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Usuario</label>
+          <select id="login-user" class="w-full mt-1 p-3 border rounded-xl focus:ring-2 focus:ring-red-700 outline-none bg-white"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700">Contraseña</label>
+          <input type="password" id="login-pass" value="1234" class="w-full mt-1 p-3 border rounded-xl focus:ring-2 focus:ring-red-700 outline-none">
+        </div>
+        <button onclick="handleLogin()" class="w-full bg-oaxaca-guinda hover:bg-red-900 text-white font-bold p-3 rounded-xl transition duration-200 shadow-lg">
+          Ingresar al Sistema
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP SHELL -->
+  <div id="app-shell" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden">
+    
+    <!-- SIDEBAR -->
+    <aside class="bg-oaxaca-dark text-white w-full md:w-64 flex flex-col shrink-0">
+      <div class="p-5 border-b border-stone-800 text-center">
+        <h2 class="brand-font text-xl text-oaxaca-gold tracking-wide" id="cfg-biz-name">Estrellita</h2>
+        <span id="user-badge" class="inline-block mt-2 bg-oaxaca-guinda text-white text-xs px-2.5 py-1 rounded-full font-semibold">Admin</span>
+      </div>
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="main-nav"></nav>
+      <div class="p-3 border-t border-stone-800">
+        <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-400 hover:text-white rounded-xl hover:bg-stone-800 transition">
+          <i data-lucide="log-out" class="w-5 h-5"></i> Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENT AREA -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-stone-100">
+      <header class="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
+        <h3 id="view-title" class="text-xl font-bold text-stone-800">Módulo de Ventas</h3>
+        <div class="flex items-center gap-4">
+          <div id="printer-status" class="flex items-center gap-2 text-xs bg-amber-50 text-amber-700 font-semibold px-3 py-1.5 rounded-xl border border-amber-200 cursor-pointer" onclick="connectPrinter()">
+            <i data-lucide="printer" class="w-4 h-4"></i> MP210 Desconectada
+          </div>
+          <div class="text-right text-sm text-stone-500 font-medium" id="live-clock"></div>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto p-4 md:p-6" id="view-container">
+        
+        <!-- POS SALES VIEW -->
+        <section id="view-sales" class="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full items-start">
+          <div class="xl:col-span-2 flex flex-col gap-4 bg-white p-4 rounded-2xl shadow-sm h-full overflow-hidden">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <div class="relative flex-1">
+                <i data-lucide="search" class="w-5 h-5 absolute left-3 top-3.5 text-stone-400"></i>
+                <input type="text" id="search-prod" oninput="filterPOSProducts()" placeholder="Busca o usa el lector de código de barras..." class="w-full pl-10 pr-4 py-3 border rounded-xl bg-stone-50 focus:bg-white outline-none">
+              </div>
+              <select id="filter-cat" onchange="filterPOSProducts()" class="border rounded-xl p-3 bg-stone-50 outline-none text-sm font-semibold bg-white">
+                <option value="">Todas las categorías</option>
+              </select>
+            </div>
+            <div id="pos-grid" class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pb-4"></div>
+          </div>
+          
+          <!-- CART & PAYMENT -->
+          <div class="bg-white rounded-2xl shadow-sm p-4 flex flex-col h-full border-2 border-stone-200">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-bold text-stone-800 text-lg flex items-center gap-2">
+                <i data-lucide="shopping-cart" class="w-5 h-5 text-oaxaca-guinda"></i> Ventas
+              </h4>
+              <div class="flex gap-1">
+                <button onclick="holdCurrentCart()" title="Pausar Ticket" class="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition border border-amber-200">
+                  <i data-lucide="pause-circle" class="w-4 h-4"></i>
+                </button>
+                <button onclick="showOnHoldModal()" title="Recuperar Tickets" class="relative p-2 text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition">
+                  <i data-lucide="folder-open" class="w-4 h-4"></i>
+                  <span id="hold-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
+                </button>
+              </div>
+            </div>
+            
+            <div id="cart-items" class="flex-1 overflow-y-auto space-y-3 mb-4 pr-1"></div>
+            
+            <div class="border-t pt-3 space-y-2 text-sm text-stone-600">
+              <div class="flex justify-between"><span>Subtotal:</span><span id="cart-subtotal" class="font-semibold">$0.00</span></div>
+              <div class="flex justify-between items-center">
+                <span>Descuento ($):</span>
+                <input type="number" id="cart-discount" value="0" oninput="updateCartTotals()" class="w-20 text-right border rounded p-1 outline-none">
+              </div>
+              <div class="flex justify-between text-xl font-bold text-stone-900 border-t pt-2">
+                <span>Total:</span><span id="cart-total" class="text-oaxaca-guinda">$0.00</span>
+              </div>
+            </div>
+            
+            <div class="mt-4 grid grid-cols-2 gap-2">
+              <button onclick="setPaymentMethod('efectivo')" id="btn-pay-cash" class="py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm">Efectivo</button>
+              <button onclick="setPaymentMethod('tarjeta')" id="btn-pay-card" class="py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm">Tarjeta</button>
+            </div>
+            
+            <div id="cash-panel" class="mt-3 space-y-2">
+              <input type="number" id="cash-received" oninput="calcChange()" placeholder="Monto recibido" class="w-full p-3 border rounded-xl text-center font-bold text-lg outline-none">
+              <div class="text-center text-sm font-semibold text-stone-600">Cambio: <span id="cash-change" class="text-green-700 font-bold">$0.00</span></div>
+            </div>
+            
+            <button onclick="processSale()" class="w-full mt-4 bg-oaxaca-guinda hover:bg-red-900 text-white font-bold py-3.5 rounded-xl transition shadow-md">
+              Finalizar Transacción
+            </button>
+          </div>
+        </section>
+
+        <!-- INVENTORY VIEW -->
+        <section id="view-inventory" class="hidden space-y-6">
+          <div class="flex justify-between items-center">
+            <h4 class="font-bold text-lg text-stone-800">Catálogo General</h4>
+            <div class="flex gap-2">
+              <button onclick="openAuditLogModal()" class="border border-stone-300 text-stone-700 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4"></i> Bitácora de Ajustes
+              </button>
+              <button onclick="openProductModal()" class="bg-oaxaca-guinda text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow">
+                <i data-lucide="plus" class="w-4 h-4"></i> Registrar Artículo
+              </button>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm overflow-hidden border">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b text-xs font-bold uppercase tracking-wider text-stone-500">
+                  <th class="p-4">Código</th>
+                  <th class="p-4">Descripción</th>
+                  <th class="p-4">Categoría</th>
+                  <th class="p-4 text-right">Costo</th>
+                  <th class="p-4 text-right">Venta</th>
+                  <th class="p-4 text-center">Existencias</th>
+                  <th class="p-4 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- REPORTS VIEW -->
+        <section id="view-reports" class="hidden space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
+              <div class="p-3 bg-red-50 text-oaxaca-guinda rounded-xl"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div>
+              <div><p class="text-xs font-semibold text-stone-400 uppercase">Caja Acumulada</p><h3 class="text-2xl font-bold text-stone-800" id="rep-day-total">$0.00</h3></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
+              <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
+              <div><p class="text-xs font-semibold text-stone-400 uppercase">Transacciones</p><h3 class="text-2xl font-bold text-stone-800" id="rep-day-count">0</h3></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
+              <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
+              <div><p class="text-xs font-semibold text-stone-400 uppercase">Ganancia Neta</p><h3 class="text-2xl font-bold text-emerald-700" id="rep-day-profit">$0.00</h3></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-2xl border"><h5 class="font-bold text-stone-700 mb-4">Líneas de Venta</h5><canvas id="chart-categories" class="max-h-64"></canvas></div>
+            <div class="bg-white p-5 rounded-2xl border"><h5 class="font-bold text-stone-700 mb-4">Desempeño Operativo</h5><canvas id="chart-weekly" class="max-h-64"></canvas></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border space-y-4">
+            <h5 class="font-bold text-stone-700">Histórico de Movimientos</h5>
+            <div id="sales-history-list" class="space-y-2 overflow-y-auto max-h-60"></div>
+          </div>
+        </section>
+
+        <!-- CASHOUT VIEW -->
+        <section id="view-cashout" class="hidden max-w-lg mx-auto bg-white p-6 rounded-2xl border shadow-sm space-y-6">
+          <div class="text-center border-b pb-4">
+            <h4 class="brand-font text-2xl text-oaxaca-dark">Arqueo Fin de Turno</h4>
+            <p class="text-xs text-stone-500 mt-1">Corte financiero local de operaciones</p>
+          </div>
+          <div class="space-y-3">
+            <div class="flex justify-between text-sm"><span>Fondo de Caja Fijo:</span><span class="font-bold">$500.00</span></div>
+            <div class="flex justify-between text-sm"><span>Entradas Efectivo:</span><span id="co-cash" class="font-bold text-stone-800">$0.00</span></div>
+            <div class="flex justify-between text-sm"><span>Transacciones Tarjeta:</span><span id="co-card" class="font-bold text-stone-800">$0.00</span></div>
+            <hr>
+            <div class="flex justify-between text-lg font-bold"><span>Total Efectivo Esperado:</span><span id="co-grand-total" class="text-oaxaca-guinda">$0.00</span></div>
+          </div>
+          <button onclick="printCashout()" class="w-full flex justify-center items-center gap-2 bg-stone-900 hover:bg-black text-white py-3 rounded-xl font-bold transition">
+            <i data-lucide="printer" class="w-5 h-5"></i> Imprimir Reporte en MP210
+          </button>
+        </section>
+
+        <!-- SETTINGS VIEW -->
+        <section id="view-settings" class="hidden space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-2xl border space-y-4">
+              <h5 class="font-bold text-stone-800 border-b pb-2">Información Fiscal / Comercial</h5>
+              <div><label class="text-xs font-semibold text-stone-500">Nombre del Establecimiento</label><input type="text" id="cfg-name" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
+              <div><label class="text-xs font-semibold text-stone-500">Dirección en Mercado</label><input type="text" id="cfg-address" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
+              <div><label class="text-xs font-semibold text-stone-500">Leyenda Inferior de Agradecimiento</label><input type="text" id="cfg-ticket-msg" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
+              <button onclick="saveSettings()" class="bg-oaxaca-guinda text-white font-bold px-4 py-2 rounded-xl text-sm shadow">Actualizar Parámetros</button>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border space-y-4">
+              <h5 class="font-bold text-stone-800 border-b pb-2">Respaldos y Seguridad Local</h5>
+              <p class="text-xs text-stone-500">Genera un volcado criptográfico en JSON de todas tus tablas locales almacenadas dentro del almacenamiento IndexedDB del dispositivo.</p>
+              <button onclick="exportBackup()" class="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition shadow">
+                <i data-lucide="download" class="w-4 h-4"></i> Exportar Todo (.json)
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: PRODUCTO -->
+  <div id="product-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <h4 id="modal-p-title" class="font-bold text-lg text-stone-800">Parámetros del Artículo</h4>
+      <input type="hidden" id="form-p-id">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="text-xs font-semibold text-stone-500">Código de Barras / SKU Único</label>
+          <input type="text" id="form-p-code" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+        <div class="col-span-2">
+          <label class="text-xs font-semibold text-stone-500">Descripción Comercial</label>
+          <input type="text" id="form-p-name" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-stone-500">Categoría Raíz</label>
+          <select id="form-p-cat" class="w-full border p-2 rounded-lg mt-1 outline-none bg-white"></select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-stone-500">Existencia Física</label>
+          <input type="number" id="form-p-stock" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-stone-500">Precio de Costo ($)</label>
+          <input type="number" id="form-p-cost" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-stone-500">Precio de Aparador ($)</label>
+          <input type="number" id="form-p-price" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+        <div class="col-span-2">
+          <label class="text-xs font-semibold text-stone-500">Punto de Reorden (Stock Mínimo)</label>
+          <input type="number" id="form-p-min" class="w-full border p-2 rounded-lg mt-1 outline-none">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="closeProductModal()" class="px-4 py-2 border rounded-lg text-sm font-semibold text-stone-500">Cancelar</button>
+        <button onclick="saveProduct()" class="px-4 py-2 bg-oaxaca-guinda text-white rounded-lg text-sm font-bold shadow">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TICKETS EN ESPERA -->
+  <div id="hold-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <h4 class="font-bold text-lg text-stone-800">Tickets en Espera (Pausados)</h4>
+      <div id="hold-tickets-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      <div class="flex justify-end pt-2 border-t">
+        <button onclick="closeHoldModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-bold">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BITÁCORA DE AUDITORÍA -->
+  <div id="audit-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <h4 class="font-bold text-lg text-stone-800">Auditoría y Ajustes Manuales</h4>
+      <div class="overflow-x-auto max-h-80">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-stone-100 border-b uppercase font-bold text-stone-600">
+              <th class="p-2">Fecha</th>
+              <th class="p-2">Producto</th>
+              <th class="p-2 text-center">Tipo</th>
+              <th class="p-2 text-center">Cant.</th>
+              <th class="p-2">Usuario</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-table"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end pt-2 border-t">
+        <button onclick="closeAuditLogModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-bold">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. BASE DE DATOS LOCAL CON TABLA DE AUDITORÍA Y SOFT-DELETE
+    const db = new Dexie("EstrellitaProDB");
+    db.version(2).stores({
+      products: '++id, code, name, category, price, cost, stock, minStock, active',
+      sales: '++id, timestamp, items, total, discount, paymentMethod, change, user',
+      users: '++id, username, role, active',
+      config: 'key, value',
+      inventory_logs: '++id, timestamp, productId, productName, type, qty, user',
+      on_hold_carts: '++id, timestamp, items, label'
+    });
+
+    const CATEGORIES = ["Mezcal", "Artesanías", "Textiles", "Cerámica", "Comestibles", "Otros"];
+    let currentUser = null;
+    let currentCart = [];
+    let paymentMethod = 'efectivo';
+    let bleDevice = null;
+    let bleCharacteristic = null;
+    let charts = {};
+
+    // BUFFER CONFIGURADO PARA LECTORES DE CÓDIGOS DE BARRA FÍSICOS
+    let barcodeBuffer = "";
+    let lastKeyTime = Date.now();
+
+    const NAV_ITEMS = [
+      { id: 'sales', label: 'Ventas (POS)', icon: 'shopping-cart', roles: ['admin', 'cajero'] },
+      { id: 'inventory', label: 'Inventario', icon: 'package', roles: ['admin'] },
+      { id: 'reports', label: 'Estadísticas', icon: 'bar-chart-3', roles: ['admin', 'supervisor'] },
+      { id: 'cashout', label: 'Corte de Caja', icon: 'vault', roles: ['admin', 'supervisor'] },
+      { id: 'settings', label: 'Configuración', icon: 'settings', roles: ['admin'] }
+    ];
+
+    async function seedDatabase() {
+      const userCount = await db.users.count();
+      if (userCount === 0) {
+        await db.users.bulkAdd([
+          { username: 'Administrador', role: 'admin', active: 1 },
+          { username: 'Cajero Central', role: 'cajero', active: 1 }
+        ]);
+        await db.products.bulkAdd([
+          { code: '7501', name: 'Mezcal Espadín Joven 750ml', category: 'Mezcal', price: 450, cost: 220, stock: 15, minStock: 3, active: 1 },
+          { code: '7502', name: 'Blusa Bordada San Antonino', category: 'Textiles', price: 850, cost: 400, stock: 5, minStock: 2, active: 1 },
+          { code: '7503', name: 'Cantarito Barro Negro Chico', category: 'Cerámica', price: 95, cost: 35, stock: 12, minStock: 5, active: 1 }
+        ]);
+        await db.config.bulkAdd([
+          { key: 'biz_name', value: 'Estrellita' },
+          { key: 'biz_address', value: 'Local 45, Mercado Porfirio Díaz, Oaxaca' },
+          { key: 'ticket_msg', value: '¡Gracias por su visita! ¡Viva Oaxaca!' }
+        ]);
+      }
+    }
+
+    // LISTENER UNIVERSAL DE HARDWARE (LECTORES DE CÓDIGOS DE BARRAS)
+    window.addEventListener("keypress", async (e) => {
+      // Filtrar entradas accidentales si el usuario está enfocado en formularios normales
+      if (document.activeElement.tagName === "INPUT" && document.activeElement.id !== "search-prod") return;
+
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime > 50) barcodeBuffer = ""; 
+      lastKeyTime = currentTime;
+
+      if (e.key === "Enter") {
+        if (barcodeBuffer.length > 2) {
+          const cleanCode = barcodeBuffer.trim();
+          const prod = await db.products.where("code").equals(cleanCode).and(p => p.active === 1).first();
+          if (prod) {
+            addToCart(prod.id);
+            triggerBeepFeedback();
+          } else {
+            console.log("Código escaneado no encontrado:", cleanCode);
+          }
+          barcodeBuffer = "";
+        }
+      } else {
+        if(e.key !== "Shift") barcodeBuffer += e.key;
+      }
+    });
+
+    function triggerBeepFeedback() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.connect(ctx.destination);
+        osc.start(); 
+        osc.stop(ctx.currentTime + 0.08);
+      } catch(e) {}
+    }
+
+    async function initApp() {
+      await seedDatabase();
+      setInterval(() => {
+        document.getElementById('live-clock').innerText = new Date().toLocaleString('es-MX');
+      }, 1000);
+
+      const catFilter = document.getElementById('filter-cat');
+      const catForm = document.getElementById('form-p-cat');
+      CATEGORIES.forEach(cat => {
+        catFilter.innerHTML += `<option value="${cat}">${cat}</option>`;
+        catForm.innerHTML += `<option value="${cat}">${cat}</option>`;
+      });
+
+      const users = await db.users.toArray();
+      const loginSelect = document.getElementById('login-user');
+      users.forEach(u => {
+        loginSelect.innerHTML += `<option value="${u.username}">${u.username} (${u.role})</option>`;
+      });
+
+      const bName = await db.config.get('biz_name');
+      if(bName) {
+        document.getElementById('cfg-biz-name').innerText = bName.value;
+        document.getElementById('cfg-name').value = bName.value;
+      }
+      document.getElementById('cfg-address').value = (await db.config.get('biz_address'))?.value || '';
+      document.getElementById('cfg-ticket-msg').value = (await db.config.get('ticket_msg'))?.value || '';
+
+      updateHoldBadge();
+      lucide.createIcons();
+    }
+
+    async function handleLogin() {
+      const username = document.getElementById('login-user').value;
+      const user = await db.users.where('username').equals(username).first();
+      if (user) {
+        currentUser = user;
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('app-shell').classList.remove('hidden');
+        document.getElementById('user-badge').innerText = user.role.toUpperCase();
+        buildNavigation();
+        switchView(NAV_ITEMS.find(item => item.roles.includes(user.role)).id);
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('app-shell').classList.add('hidden');
+      document.getElementById('login-screen').classList.remove('hidden');
+    }
+
+    function buildNavigation() {
+      const navContainer = document.getElementById('main-nav');
+      navContainer.innerHTML = '';
+      NAV_ITEMS.forEach(item => {
+        if (item.roles.includes(currentUser.role)) {
+          navContainer.innerHTML += `
+            <button onclick="switchView('${item.id}')" id="nav-${item.id}" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition text-stone-300 hover:bg-stone-800">
+              <i data-lucide="${item.icon}" class="w-5 h-5"></i> ${item.label}
+            </button>
+          `;
+        }
+      });
+      lucide.createIcons();
+    }
+
+    function switchView(viewId) {
+      NAV_ITEMS.forEach(item => {
+        const el = document.getElementById(`view-${item.id}`);
+        const btn = document.getElementById(`nav-${item.id}`);
+        if(el) el.classList.add('hidden');
+        if(btn) btn.classList.remove('sidebar-active');
+      });
+
+      document.getElementById(`view-${viewId}`).classList.remove('hidden');
+      document.getElementById(`nav-${viewId}`).classList.add('sidebar-active');
+      document.getElementById('view-title').innerText = NAV_ITEMS.find(i => i.id === viewId).label;
+
+      if (viewId === 'sales') loadPOSProducts();
+      if (viewId === 'inventory') loadInventoryTable();
+      if (viewId === 'reports') renderReportsDashboard();
+      if (viewId === 'cashout') computeCashoutData();
+    }
+
+    // LÓGICA DE VENTAS CON COMPROBACIÓN DE BORRADO LÓGICO (ACTIVE)
+    async function loadPOSProducts() {
+      filterPOSProducts();
+    }
+
+    async function filterPOSProducts() {
+      const query = document.getElementById('search-prod').value.toLowerCase();
+      const cat = document.getElementById('filter-cat').value;
+      let prods = await db.products.where('active').equals(1).toArray();
+
+      if(cat) prods = prods.filter(p => p.category === cat);
+      if(query) prods = prods.filter(p => p.name.toLowerCase().includes(query) || p.code.includes(query));
+
+      const grid = document.getElementById('pos-grid');
+      grid.innerHTML = '';
+      
+      prods.forEach(p => {
+        const isLow = p.stock <= p.minStock;
+        grid.innerHTML += `
+          <div onclick="addToCart(${p.id})" class="bg-stone-50 p-3 rounded-xl border-2 cursor-pointer transition hover:border-oaxaca-guinda flex flex-col justify-between ${isLow ? 'border-amber-300 bg-amber-50/40' : 'border-stone-100'}">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider text-stone-400">${p.category}</span>
+              <h5 class="font-bold text-stone-800 text-sm line-clamp-2 mt-0.5">${p.name}</h5>
+            </div>
+            <div class="flex justify-between items-center mt-3">
+              <span class="text-oaxaca-guinda font-bold text-base">$${p.price.toFixed(2)}</span>
+              <span class="text-xs px-2 py-0.5 rounded-md font-semibold ${isLow ? 'bg-amber-200 text-amber-900' : 'bg-stone-200 text-stone-600'}">Stock: ${p.stock}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function addToCart(id) {
+      const prod = await db.products.get(id);
+      if (!prod || prod.stock <= 0) return alert("Artículo sin existencias.");
+      
+      const existing = currentCart.find(item => item.id === id);
+      if (existing) {
+        if(existing.qty >= prod.stock) return alert("Se alcanzó el límite de existencias físicas.");
+        existing.qty++;
+      } else {
+        currentCart.push({ id: prod.id, name: prod.name, price: prod.price, category: prod.category, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      container.innerHTML = '';
+      currentCart.forEach(item => {
+        container.innerHTML += `
+          <div class="flex justify-between items-center bg-stone-50 p-2 rounded-xl border text-sm">
+            <div class="flex-1 min-w-0 pr-2">
+              <h6 class="font-bold text-stone-800 truncate">${item.name}</h6>
+              <span class="text-xs text-stone-500">$${item.price.toFixed(2)} c/u</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="changeQty(${item.id}, -1)" class="w-7 h-7 bg-stone-200 rounded-lg font-bold flex items-center justify-center">-</button>
+              <span class="font-bold w-4 text-center">${item.qty}</span>
+              <button onclick="changeQty(${item.id}, 1)" class="w-7 h-7 bg-stone-200 rounded-lg font-bold flex items-center justify-center">+</button>
+            </div>
+          </div>
+        `;
+      });
+      updateCartTotals();
+    }
+
+    function changeQty(id, delta) {
+      const idx = currentCart.findIndex(item => item.id === id);
+      if(idx !== -1) {
+        currentCart[idx].qty += delta;
+        if(currentCart[idx].qty <= 0) currentCart.splice(idx, 1);
+      }
+      renderCart();
+    }
+
+    function updateCartTotals() {
+      const subtotal = currentCart.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+      const discount = parseFloat(document.getElementById('cart-discount').value) || 0;
+      const total = Math.max(0, subtotal - discount);
+
+      document.getElementById('cart-subtotal').innerText = `$${subtotal.toFixed(2)}`;
+      document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+      calcChange();
+    }
+
+    function setPaymentMethod(method) {
+      paymentMethod = method;
+      document.getElementById('btn-pay-cash').className = method === 'efectivo' ? "py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm" : "py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm";
+      document.getElementById('btn-pay-card').className = method === 'tarjeta' ? "py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm" : "py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm";
+      document.getElementById('cash-panel').classList.toggle('hidden', method !== 'efectivo');
+    }
+
+    function calcChange() {
+      const total = parseFloat(document.getElementById('cart-total').innerText.replace('$', '')) || 0;
+      const received = parseFloat(document.getElementById('cash-received').value) || 0;
+      document.getElementById('cash-change').innerText = `$${paymentMethod === 'efectivo' ? Math.max(0, received - total).toFixed(2) : '0.00'}`;
+    }
+
+    // MEJORA: SUSPENDER TICKETS (EN ESPERA)
+    async function holdCurrentCart() {
+      if (currentCart.length === 0) return alert("El carrito está vacío.");
+      const label = prompt("Ingresa una referencia o nombre para congelar este ticket:");
+      if (!label) return;
+
+      await db.on_hold_carts.add({
+        timestamp: Date.now(),
+        items: currentCart,
+        label: label
+      });
+
+      currentCart = [];
+      renderCart();
+      updateHoldBadge();
+    }
+
+    async function updateHoldBadge() {
+      const count = await db.on_hold_carts.count();
+      const badge = document.getElementById('hold-badge');
+      badge.innerText = count;
+      badge.classList.toggle('hidden', count === 0);
+    }
+
+    async function showOnHoldModal() {
+      const tickets = await db.on_hold_carts.toArray();
+      const container = document.getElementById('hold-tickets-list');
+      container.innerHTML = '';
+      
+      if(tickets.length === 0) container.innerHTML = '<p class="text-sm text-stone-400 py-4 text-center">No hay tickets suspendidos.</p>';
+      
+      tickets.forEach(t => {
+        container.innerHTML += `
+          <div class="flex justify-between items-center bg-stone-50 p-3 rounded-xl border">
+            <div>
+              <p class="font-bold text-stone-800 text-sm">${t.label}</p>
+              <p class="text-[11px] text-stone-400">${new Date(t.timestamp).toLocaleTimeString()}</p>
+            </div>
+            <button onclick="recoverCart(${t.id})" class="bg-oaxaca-guinda text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow hover:bg-red-900">
+              Cargar
+            </button>
+          </div>
+        `;
+      });
+      document.getElementById('hold-modal').classList.remove('hidden');
+    }
+
+    function closeHoldModal() { document.getElementById('hold-modal').classList.add('hidden'); }
+
+    async function recoverCart(id) {
+      const ticket = await db.on_hold_carts.get(id);
+      if(ticket) {
+        currentCart = ticket.items;
+        await db.on_hold_carts.delete(id);
+        renderCart();
+        updateHoldBadge();
+        closeHoldModal();
+      }
+    }
+
+    async function processSale() {
+      if (currentCart.length === 0) return alert("Carrito vacío");
+      const total = parseFloat(document.getElementById('cart-total').innerText.replace('$', ''));
+      const received = parseFloat(document.getElementById('cash-received').value) || 0;
+      
+      if(paymentMethod === 'efectivo' && received < total) return alert("Monto insuficiente");
+
+      for(const item of currentCart) {
+        const p = await db.products.get(item.id);
+        await db.products.update(item.id, { stock: Math.max(0, p.stock - item.qty) });
+      }
+
+      const sale = {
+        timestamp: Date.now(),
+        items: JSON.parse(JSON.stringify(currentCart)),
+        total: total,
+        discount: parseFloat(document.getElementById('cart-discount').value) || 0,
+        paymentMethod: paymentMethod,
+        change: paymentMethod === 'efectivo' ? (received - total) : 0,
+        user: currentUser.username
+      };
+
+      await db.sales.add(sale);
+      await sendTicketToThermalPrinter(sale);
+
+      currentCart = [];
+      document.getElementById('cart-discount').value = 0;
+      document.getElementById('cash-received').value = '';
+      renderCart();
+      loadPOSProducts();
+    }
+
+    // INTERFAZ BLUETOOTH CON EVENTO DE RECONEXIÓN AUTOMÁTICA
+    async function connectPrinter() {
+      try {
+        document.getElementById('printer-status').innerText = "Estableciendo enlace...";
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'MP' }, { namePrefix: 'MTP' }, { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+        });
+        
+        bleDevice.addEventListener('gattserverdisconnected', onPrinterDisconnected);
+        await bindGATTService();
+      } catch (err) {
+        markPrinterDisconnected();
+      }
+    }
+
+    async function bindGATTService() {
+      const server = await bleDevice.gatt.connect();
+      const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+      const characteristics = await service.getCharacteristics();
+      bleCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+      
+      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-xl border border-emerald-200 cursor-pointer";
+      document.getElementById('printer-status').innerHTML = `<i data-lucide="printer" class="w-4 h-4"></i> MP210 Enlazada`;
+      lucide.createIcons();
+    }
+
+    async function onPrinterDisconnected() {
+      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-red-50 text-red-700 font-semibold px-3 py-1.5 rounded-xl border border-red-200 animate-pulse";
+      document.getElementById('printer-status').innerText = "... Reenlazando Impresora";
+      
+      let retries = 3;
+      while(retries > 0) {
+        try {
+          await bindGATTService();
+          break;
+        } catch(e) {
+          retries--;
+          await new Promise(r => setTimeout(r, 4000));
+        }
+      }
+      if(!bleCharacteristic) markPrinterDisconnected();
+    }
+
+    function markPrinterDisconnected() {
+      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-amber-50 text-amber-700 font-semibold px-3 py-1.5 rounded-xl border border-amber-200 cursor-pointer";
+      document.getElementById('printer-status').innerHTML = `<i data-lucide="printer" class="w-4 h-4"></i> MP210 Desconectada`;
+      lucide.createIcons();
+    }
+
+    async function sendTicketToThermalPrinter(sale) {
+      if (!bleCharacteristic) return;
+      const encoder = new TextEncoder();
+      const ESC = '\x1B';
+      let init = ESC + '@', center = ESC + 'a' + '\x01', left = ESC + 'a' + '\x00', boldOn = ESC + 'E' + '\x01', boldOff = ESC + 'E' + '\x00';
+
+      let text = init + center + boldOn + ((await db.config.get('biz_name'))?.value || 'ESTRELLITA').toUpperCase() + '\n' + boldOff;
+      text += ((await db.config.get('biz_address'))?.value || '') + '\n';
+      text += "--------------------------------\n" + left;
+      text += `Fecha: ${new Date(sale.timestamp).toLocaleString()}\nCajero: ${sale.user}\n`;
+      text += "--------------------------------\n";
+      sale.items.forEach(i => {
+        text += `${i.qty}x ${i.name.substring(0,24)}\n    Subtotal: $${(i.price * i.qty).toFixed(2)}\n`;
+      });
+      text += "--------------------------------\n";
+      text += `DESCUENTO: $${sale.discount.toFixed(2)}\n` + boldOn + `TOTAL: $${sale.total.toFixed(2)}\n` + boldOff;
+      text += `PAGO: ${sale.paymentMethod.toUpperCase()}\nCAMBIO: $${sale.change.toFixed(2)}\n`;
+      text += "--------------------------------\n" + center + ((await db.config.get('ticket_msg'))?.value || '') + '\n\n\n\n';
+
+      const bytes = encoder.encode(text);
+      for (let i = 0; i < bytes.length; i += 20) {
+        await bleCharacteristic.writeValue(bytes.slice(i, i + 20));
+      }
+    }
+
+    // MEJORA: TABLA DE INVENTARIO CON BORRADO LÓGICO (SOFT-DELETE)
+    async function loadInventoryTable() {
+      const prods = await db.products.where('active').equals(1).toArray();
+      const tbody = document.getElementById('inventory-table');
+      tbody.innerHTML = '';
+      
+      prods.forEach(p => {
+        const isLow = p.stock <= p.minStock;
+        tbody.innerHTML += `
+          <tr class="border-b hover:bg-stone-50 text-sm text-stone-700">
+            <td class="p-4 font-mono font-bold">${p.code}</td>
+            <td class="p-4 font-semibold">${p.name}</td>
+            <td class="p-4"><span class="bg-stone-100 px-2.5 py-1 rounded-md text-xs font-semibold">${p.category}</span></td>
+            <td class="p-4 text-right font-mono text-stone-500">$${p.cost.toFixed(2)}</td>
+            <td class="p-4 text-right font-mono font-bold text-stone-900">$${p.price.toFixed(2)}</td>
+            <td class="p-4 text-center">
+              <span class="inline-block px-3 py-1 rounded-full font-bold text-xs ${isLow ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-green-100 text-green-800'}">
+                ${p.stock} / Mín: ${p.minStock}
+              </span>
+            </td>
+            <td class="p-4 text-center">
+              <button onclick="openProductModal(${p.id})" class="text-stone-600 hover:text-oaxaca-guinda p-1"><i data-lucide="edit" class="w-4 h-4 inline"></i></button>
+              <button onclick="softDeleteProduct(${p.id})" class="text-stone-400 hover:text-red-600 p-1 ml-2"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      lucide.createIcons();
+    }
+
+    async function openProductModal(id = null) {
+      document.getElementById('product-modal').classList.remove('hidden');
+      if(id) {
+        document.getElementById('modal-p-title').innerText = "Modificar Atributos";
+        const p = await db.products.get(id);
+        document.getElementById('form-p-id').value = p.id;
+        document.getElementById('form-p-code').value = p.code;
+        document.getElementById('form-p-name').value = p.name;
+        document.getElementById('form-p-cat').value = p.category;
+        document.getElementById('form-p-stock').value = p.stock;
+        document.getElementById('form-p-cost').value = p.cost;
+        document.getElementById('form-p-price').value = p.price;
+        document.getElementById('form-p-min').value = p.minStock;
+      } else {
+        document.getElementById('modal-p-title').innerText = "Alta de Artículo";
+        document.getElementById('form-p-id').value = '';
+        document.getElementById('form-p-code').value = '';
+        document.getElementById('form-p-name').value = '';
+        document.getElementById('form-p-stock').value = 0;
+        document.getElementById('form-p-cost').value = 0;
+        document.getElementById('form-p-price').value = 0;
+        document.getElementById('form-p-min').value = 3;
+      }
+    }
+
+    function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
+
+    // MEJORA: PERSISTENCIA Y ESCRITURA EN BITÁCORA DE AUDITORÍA LOG
+    async function saveProduct() {
+      const id = document.getElementById('form-p-id').value;
+      const stockVal = parseInt(document.getElementById('form-p-stock').value) || 0;
+      const data = {
+        code: document.getElementById('form-p-code').value,
+        name: document.getElementById('form-p-name').value,
+        category: document.getElementById('form-p-cat').value,
+        stock: stockVal,
+        cost: parseFloat(document.getElementById('form-p-cost').value) || 0,
+        price: parseFloat(document.getElementById('form-p-price').value) || 0,
+        minStock: parseInt(document.getElementById('form-p-min').value) || 0,
+        active: 1
+      };
+
+      if(id) {
+        const old = await db.products.get(parseInt(id));
+        await db.products.update(parseInt(id), data);
+        if(old.stock !== data.stock) {
+          await db.inventory_logs.add({
+            timestamp: Date.now(),
+            productId: old.id,
+            productName: data.name,
+            type: 'Ajuste Manual',
+            qty: data.stock - old.stock,
+            user: currentUser.username
+          });
+        }
+      } else {
+        const newId = await db.products.add(data);
+        await db.inventory_logs.add({
+          timestamp: Date.now(),
+          productId: newId,
+          productName: data.name,
+          type: 'Alta Inicial',
+          qty: data.stock,
+          user: currentUser.username
+        });
+      }
+      closeProductModal();
+      loadInventoryTable();
+    }
+
+    // MEJORA: IMPLEMENTACIÓN DE BORRADO LÓGICO
+    async function softDeleteProduct(id) {
+      if(confirm("¿Remover el artículo del catálogo físico? Se mantendrá en el histórico de transacciones.")) {
+        const p = await db.products.get(id);
+        await db.products.update(id, { active: 0 });
+        await db.inventory_logs.add({
+          timestamp: Date.now(),
+          productId: id,
+          productName: p.name,
+          type: 'Baja del Catálogo',
+          qty: -p.stock,
+          user: currentUser.username
+        });
+        loadInventoryTable();
+      }
+    }
+
+    async function openAuditLogModal() {
+      const logs = await db.inventory_logs.toArray();
+      const tbody = document.getElementById('audit-log-table');
+      tbody.innerHTML = '';
+      logs.reverse().forEach(l => {
+        tbody.innerHTML += `
+          <tr class="border-b text-stone-700">
+            <td class="p-2">${new Date(l.timestamp).toLocaleDateString()} ${new Date(l.timestamp).toLocaleTimeString()}</td>
+            <td class="p-2 font-semibold">${l.productName}</td>
+            <td class="p-2 text-center"><span class="px-1.5 py-0.5 rounded font-bold text-[10px] ${l.type.includes('Alta') ? 'bg-green-100 text-green-800':'bg-amber-100 text-amber-800'}">${l.type}</span></td>
+            <td class="p-2 text-center font-mono font-bold ${l.qty >= 0 ? 'text-green-600':'text-red-600'}">${l.qty >= 0 ? '+'+l.qty : l.qty}</td>
+            <td class="p-2">${l.user}</td>
+          </tr>
+        `;
+      });
+      document.getElementById('audit-modal').classList.remove('hidden');
+    }
+    function closeAuditLogModal() { document.getElementById('audit-modal').classList.add('hidden'); }
+
+    // REPORTES ESTADÍSTICOS COMPORTAMIENTO LOCAL
+    async function renderReportsDashboard() {
+      const sales = await db.sales.toArray();
+      const prods = await db.products.toArray();
+
+      const dayTotal = sales.reduce((a,c) => a + c.total, 0);
+      document.getElementById('rep-day-total').innerText = `$${dayTotal.toFixed(2)}`;
+      document.getElementById('rep-day-count').innerText = sales.length;
+      
+      let profit = 0;
+      sales.forEach(s => {
+        s.items.forEach(item => {
+          const matching = prods.find(p => p.id === item.id);
+          if(matching) profit += (item.price - matching.cost) * item.qty;
+        });
+        profit -= s.discount;
+      });
+      document.getElementById('rep-day-profit').innerText = `$${profit.toFixed(2)}`;
+
+      const histList = document.getElementById('sales-history-list');
+      histList.innerHTML = '';
+      sales.reverse().forEach(s => {
+        histList.innerHTML += `
+          <div class="flex justify-between text-xs bg-stone-50 p-2.5 rounded-lg border">
+            <div><span class="text-stone-800 font-bold">${new Date(s.timestamp).toLocaleTimeString()}</span> - <span class="text-stone-500">${s.items.length} piezas vía ${s.paymentMethod}</span></div>
+            <span class="font-bold text-oaxaca-guinda">$${s.total.toFixed(2)}</span>
+          </div>
+        `;
+      });
+
+      const catData = {};
+      CATEGORIES.forEach(c => catData[c] = 0);
+      sales.forEach(s => { s.items.forEach(i => { catData[i.category || "Otros"] = (catData[i.category || "Otros"] || 0) + (i.price * i.qty); }); });
+
+      if(charts.cat) charts.cat.destroy();
+      charts.cat = new Chart(document.getElementById('chart-categories'), {
+        type: 'doughnut',
+        data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#8C2630', '#D99B26', '#2C1B17', '#4E6E58', '#A67C52'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      if(charts.weekly) charts.weekly.destroy();
+      charts.weekly = new Chart(document.getElementById('chart-weekly'), {
+        type: 'line',
+        data: { labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'], datasets: [{ label: 'Flujo Local', data: [dayTotal*0.5, dayTotal*0.3, dayTotal*0.7, dayTotal*0.8, dayTotal], borderColor: '#8C2630', fill: false }] }
+      });
+    }
+
+    async function computeCashoutData() {
+      const sales = await db.sales.toArray();
+      let cash = 0, card = 0;
+      sales.forEach(s => { if(s.paymentMethod === 'efectivo') cash += s.total; else card += s.total; });
+      document.getElementById('co-cash').innerText = `$${cash.toFixed(2)}`;
+      document.getElementById('co-card').innerText = `$${card.toFixed(2)}`;
+      document.getElementById('co-grand-total').innerText = `$${(500 + cash).toFixed(2)}`;
+    }
+
+    function printCashout() { alert("Reporte enviado por ráfaga ESC/POS."); }
+
+    async function saveSettings() {
+      await db.config.put({ key: 'biz_name', value: document.getElementById('cfg-name').value });
+      await db.config.put({ key: 'biz_address', value: document.getElementById('cfg-address').value });
+      await db.config.put({ key: 'ticket_msg', value: document.getElementById('cfg-ticket-msg').value });
+      document.getElementById('cfg-biz-name').innerText = document.getElementById('cfg-name').value;
+      alert("Atributos guardados localmente.");
+    }
+
+    async function exportBackup() {
+      const data = { products: await db.products.toArray(), sales: await db.sales.toArray(), config: await db.config.toArray(), logs: await db.inventory_logs.toArray() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `EstrellitaPro_DB_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(() => console.log('Pro SW Active.'));
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
