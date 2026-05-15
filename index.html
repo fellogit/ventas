@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS Estrellita</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#781D22">
+  <!-- Bibliotecas Externas desde CDN (Manejadas por el SW para Offline) -->
+  <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.min.css">
+  
+  <style>
+    :root {
+      --barro-oscuro: #1C1917;
+      --barro-medio: #2E2A28;
+      --rojo-guinda: #781D22;
+      --verde-jade: #1E5631;
+      --dorado-ocre: #D9A74A;
+      --blanco-marfil: #F5F4F0;
+      --texto-oscuro: #2D2724;
+      --texto-mutado: #7A726E;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--blanco-marfil); color: var(--texto-oscuro); height: 100vh; display: flex; flex-direction: column; }
+
+    /* Login Overlay */
+    #login-screen { position: fixed; inset: 0; background: var(--barro-oscuro); z-index: 100; display: flex; align-items: center; justify-content: center; color: var(--blanco-marfil); }
+    .login-card { background: var(--barro-medio); padding: 2rem; border-radius: 8px; width: 90%; max-width: 400px; border-top: 4px solid var(--dorado-ocre); }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--dorado-ocre); }
+    .form-control { width: 100%; padding: 0.75rem; border-radius: 4px; border: 1px solid var(--barro-oscuro); background: var(--blanco-marfil); color: var(--texto-oscuro); font-size: 1rem; }
+    .btn { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-primary { background: var(--rojo-guinda); color: white; }
+    .btn-secondary { background: var(--barro-medio); color: var(--blanco-marfil); border: 1px solid var(--texto-mutado); }
+    .btn-success { background: var(--verde-jade); color: white; }
+
+    /* Main Layout */
+    header { background: var(--barro-oscuro); color: var(--blanco-marfil); padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--dorado-ocre); }
+    .header-title h1 { font-size: 1.25rem; color: var(--dorado-ocre); }
+    .header-title p { font-size: 0.75rem; color: var(--texto-mutado); }
+    
+    .main-container { display: flex; flex: 1; overflow: hidden; }
+    
+    /* Navigation Sidebar */
+    nav { background: var(--barro-medio); width: 70px; display: flex; flex-direction: column; align-items: center; padding-top: 1rem; gap: 1rem; }
+    nav button { background: transparent; border: none; color: var(--texto-mutated); padding: 0.75rem; border-radius: 8px; cursor: pointer; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    nav button.active { background: var(--rojo-guinda); color: white; }
+    nav button:hover:not(.active) { background: rgba(255,255,255,0.1); }
+    nav button i { font-size: 1.5rem; }
+
+    /* Content Area */
+    .content-view { flex: 1; padding: 1.5rem; overflow-y: auto; display: none; }
+    .content-view.active { display: block; }
+
+    /* POS Grid */
+    .pos-grid { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; height: 100%; }
+    @media (max-width: 900px) { .pos-grid { grid-template-columns: 1fr; } .cart-panel { display: none; } }
+    
+    .products-pane { display: flex; flex-direction: column; gap: 1rem; }
+    .search-bar { display: flex; gap: 0.5rem; }
+    .categories-bar { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
+    .cat-badge { background: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem; white-space: nowrap; cursor: pointer; border: 1px solid #E5E7EB; }
+    .cat-badge.active { background: var(--barro-oscuro); color: var(--dorado-ocre); }
+    
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; overflow-y: auto; }
+    .product-card { background: white; border-radius: 6px; padding: 1rem; border: 1px solid #E5E7EB; cursor: pointer; position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 120px; }
+    .product-card:hover { border-color: var(--rojo-guinda); }
+    .product-card .price { font-weight: bold; color: var(--rojo-guinda); margin-top: 0.5rem; }
+    .stock-badge { position: absolute; top: 5px; right: 5px; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: #E5E7EB; }
+    .stock-low { background: #FEE2E2; color: #DC2626; font-weight: bold; }
+
+    /* Cart Panel */
+    .cart-panel { background: white; border-radius: 8px; border: 1px solid #E5E7EB; display: flex; flex-direction: column; height: 100%; }
+    .cart-header { padding: 1rem; border-bottom: 1px solid #E5E7EB; font-weight: bold; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+    .cart-totals { padding: 1rem; border-top: 1px solid #E5E7EB; background: var(--blanco-marfil); }
+    .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem; margin-top: 0.5rem; color: var(--rojo-guinda); }
+
+    /* Tables & UI Components */
+    .table-container { background: white; border-radius: 8px; border: 1px solid #E5E7EB; overflow-x: auto; margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: var(--barro-oscuro); color: var(--dorado-ocre); padding: 0.75rem 1rem; font-size: 0.875rem; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid #E5E7EB; font-size: 0.9rem; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: white; padding: 1.25rem; border-radius: 8px; border-left: 4px solid var(--verde-jade); border: 1px solid #E5E7EB; border-left-width: 4px; }
+    .stat-card.primary { border-left-color: var(--rojo-guinda); }
+    .stat-card h3 { font-size: 0.875rem; color: var(--texto-mutado); }
+    .stat-card p { font-size: 1.75rem; font-weight: bold; color: var(--barro-oscuro); margin-top: 0.25rem; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: none; align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 450px; }
+    
+    .flex-gap { display: flex; gap: 0.5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- PANTALLA DE LOGIN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h2 style="text-align: center; margin-bottom: 1.5rem; color: var(--dorado-ocre)">Estrellita POS</h2>
+      <div class="form-group">
+        <label>Usuario</label>
+        <select id="login-user" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label>Contraseña Local</label>
+        <input type="password" id="login-pass" class="form-control" placeholder="••••">
+      </div>
+      <button class="btn btn-primary" onclick="app.auth.login()">Ingresar</button>
+    </div>
+  </div>
+
+  <!-- HEADER PRINCIPAL -->
+  <header>
+    <div class="header-title">
+      <h1 id="cfg-biz-name">Estrellita</h1>
+      <p id="cfg-biz-desc">Mercado Porfirio Díaz, Oaxaca</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span id="user-badge" style="background: var(--barro-medio); padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.85rem; color: var(--dorado-ocre)"></span>
+      <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="app.auth.logout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR DE APLICACIÓN -->
+  <div class="main-container">
+    <!-- BARRA DE NAVEGACIÓN -->
+    <nav id="main-nav">
+      <button onclick="app.router.nav('pos')" id="nav-pos" class="active" title="Ventas"><i class="lucide-shopping-cart"></i></button>
+      <button onclick="app.router.nav('inventory')" id="nav-inventory" title="Inventario"><i class="lucide-package"></i></button>
+      <button onclick="app.router.nav('reports')" id="nav-reports" title="Reportes"><i class="lucide-bar-chart-3"></i></button>
+      <button onclick="app.router.nav('cash')" id="nav-cash" title="Corte de Caja"><i class="lucide-calculator"></i></button>
+      <button onclick="app.router.nav('config')" id="nav-config" title="Configuración"><i class="lucide-settings"></i></button>
+    </nav>
+
+    <!-- VISTA: PUNTO DE VENTA (POS) -->
+    <main id="view-pos" class="content-view active">
+      <div class="pos-grid">
+        <div class="products-pane">
+          <div class="search-bar">
+            <input type="text" id="pos-search" class="form-control" placeholder="Buscar por nombre o código..." oninput="app.pos.renderProducts()">
+          </div>
+          <div class="categories-bar" id="pos-categories"></div>
+          <div class="products-grid" id="pos-products-list"></div>
+        </div>
+        
+        <div class="cart-panel">
+          <div class="cart-header">Carrito de Compra</div>
+          <div class="cart-items" id="cart-items-list"></div>
+          <div class="cart-totals">
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--texto-mutado)">
+              <span>Subtotal</span>
+              <span id="cart-subtotal">$0.00</span>
+            </div>
+            <div class="total-row">
+              <span>Total</span>
+              <span id="cart-total">$0.00</span>
+            </div>
+            <button class="btn btn-success" style="margin-top: 1rem;" onclick="app.pos.openPaymentModal()">Cobrar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- VISTA: INVENTARIO -->
+    <main id="view-inventory" class="content-view">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>Gestión de Inventario</h2>
+        <button class="btn btn-primary" style="width: auto;" onclick="app.inventory.openForm()">Nuevo Producto</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Costo</th>
+              <th>P. Venta</th>
+              <th>Stock</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-table-body"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- VISTA: REPORTES Y ESTADÍSTICAS -->
+    <main id="view-reports" class="content-view">
+      <h2>Estadísticas de Venta</h2>
+      <div class="stats-grid" style="margin-top:1rem;">
+        <div class="stat-card primary"><h3>Ventas del Día</h3><p id="rep-day-total">$0.00</p></div>
+        <div class="stat-card"><h3>Transacciones</h3><p id="rep-day-count">0</p></div>
+        <div class="stat-card"><h3>Efectivo</h3><p id="rep-cash-total">$0.00</p></div>
+        <div class="stat-card"><h3>Tarjeta</h3><p id="rep-card-total">$0.00</p></div>
+      </div>
+      <div style="background: white; padding: 1rem; border-radius: 8px; border: 1px solid #E5E7EB; max-width: 600px;">
+        <canvas id="chart-sales"></canvas>
+      </div>
+    </main>
+
+    <!-- VISTA: CORTE DE CAJA -->
+    <main id="view-cash" class="content-view">
+      <h2>Corte de Caja</h2>
+      <div style="margin-top: 1rem; max-width: 500px; background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E5E7EB;">
+        <div class="form-group">
+          <label>Fondo Inicial de Caja</label>
+          <input type="number" id="cash-initial" class="form-control" value="1000">
+        </div>
+        <hr style="margin: 1rem 0; border: 0; border-top: 1px solid #E5E7EB;">
+        <div id="cash-report-data" style="line-height: 1.8;"></div>
+        <div class="flex-gap" style="margin-top: 1.5rem;">
+          <button class="btn btn-primary" onclick="app.cash.printCashCut()">Imprimir Corte</button>
+          <button class="btn btn-success" onclick="app.cash.performReset()">Cerrar Día y Reiniciar</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- VISTA: CONFIGURACIÓN -->
+    <main id="view-config" class="content-view">
+      <h2>Configuración del Sistema</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E5E7EB;">
+          <h3 style="margin-bottom: 1rem; color: var(--rojo-guinda)">Datos del Negocio</h3>
+          <div class="form-group"><label>Nombre</label><input type="text" id="cfg-name" class="form-control"></div>
+          <div class="form-group"><label>Dirección / Leyenda</label><input type="text" id="cfg-address" class="form-control"></div>
+          <button class="btn btn-primary" onclick="app.config.saveBiz()">Guardar Cambios</button>
+        </div>
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #E5E7EB;">
+          <h3 style="margin-bottom: 1rem; color: var(--rojo-guinda)">Impresora & Respaldos</h3>
+          <button class="btn btn-secondary" style="margin-bottom: 1rem;" onclick="app.bt.connect()">Conectar Impresora MP210</button>
+          <div id="printer-status" style="font-size:0.85rem; margin-bottom:1rem; color: var(--texto-mutado)">Estado: Desconectada</div>
+          <button class="btn btn-success" onclick="app.config.exportBackup()">Exportar Datos (JSON)</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: COBRO / PAGO -->
+  <div class="modal" id="modal-payment">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 1rem; color: var(--rojo-guinda)">Finalizar Venta</h3>
+      <div class="form-group">
+        <label>Total a Cobrar</label>
+        <input type="text" id="pay-total" class="form-control" readonly style="font-size:1.5rem; font-weight:bold; color:var(--rojo-guinda)">
+      </div>
+      <div class="form-group">
+        <label>Método de Pago</label>
+        <select id="pay-method" class="form-control" onchange="app.pos.togglePayMethod()">
+          <option value="Efectivo">Efectivo</option>
+          <option value="Tarjeta">Tarjeta</option>
+        </select>
+      </div>
+      <div class="form-group" id="group-received">
+        <label>Efectivo Recibido</label>
+        <input type="number" id="pay-received" class="form-control" oninput="app.pos.calcChange()">
+      </div>
+      <div class="form-group" id="group-change">
+        <label>Cambio</label>
+        <input type="text" id="pay-change" class="form-control" readonly value="$0.00">
+      </div>
+      <div class="flex-gap" style="margin-top: 1.5rem;">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-payment').classList.remove('active')">Cancelar</button>
+        <button class="btn btn-success" onclick="app.pos.processSale()">Procesar e Imprimir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FORMULARIO DE INVENTARIO -->
+  <div class="modal" id="modal-product">
+    <div class="modal-content">
+      <h3 id="prod-modal-title" style="margin-bottom: 1rem; color: var(--rojo-guinda)">Producto</h3>
+      <input type="hidden" id="prod-id">
+      <div class="form-group"><label>Código</label><input type="text" id="prod-code" class="form-control"></div>
+      <div class="form-group"><label>Nombre</label><input type="text" id="prod-name" class="form-control"></div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="prod-cat" class="form-control">
+          <option value="Mezcal">Mezcal</option>
+          <option value="Artesanías">Artesanías</option>
+          <option value="Textiles">Textiles</option>
+          <option value="Cerámica">Cerámica</option>
+          <option value="Comestibles">Comestibles</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <div class="flex-gap">
+        <div class="form-group"><label>Costo</label><input type="number" id="prod-cost" class="form-control" step="0.01"></div>
+        <div class="form-group"><label>Precio Venta</label><input type="number" id="prod-price" class="form-control" step="0.01"></div>
+      </div>
+      <div class="flex-gap">
+        <div class="form-group"><label>Stock Actual</label><input type="number" id="prod-stock" class="form-control"></div>
+        <div class="form-group"><label>Stock Mínimo</label><input type="number" id="prod-min" class="form-control" value="3"></div>
+      </div>
+      <div class="flex-gap" style="margin-top: 1.5rem;">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-product').classList.remove('active')">Cancelar</button>
+        <button class="btn btn-success" onclick="app.inventory.save()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT DE LÓGICA DE NEGOCIO -->
+  <script>
+    // Registro del Service Worker para funcionamiento offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log("SW Error", err));
+    }
+
+    // Inicialización Base de Datos Local con Dexie.js
+    const db = new Dexie('EstrellitaDB');
+    db.version(1).stores({
+      products: 'id++, code, name, category, price, cost, stock, minStock',
+      sales: 'id++, timestamp, total, method, user',
+      saleDetails: 'id++, saleId, productId, quantity, price',
+      users: 'username, password, role',
+      config: 'key, value'
+    });
+
+    // Estado global de la aplicación
+    const app = {
+      currentUser: null,
+      selectedCategory: 'Todos',
+      cart: [],
+      printerDevice: null,
+      printerCharacteristic: null,
+
+      init: async () => {
+        await app.auth.initUsers();
+        await app.config.initBiz();
+        app.router.init();
+        lucide.createIcons();
+      },
+
+      router: {
+        init: () => {
+          app.auth.updateUserSelect();
+        },
+        nav: (view) => {
+          if (!app.currentUser) return;
+          const role = app.currentUser.role;
+          
+          // Validación estricta de Roles
+          if (view === 'inventory' && role === 'Cajero') return alert('Acceso denegado: Solo administradores.');
+          if (view === 'config' && role !== 'Administrador') return alert('Acceso denegado: Requiere rol Administrador.');
+          if (view === 'reports' && role === 'Cajero') return alert('Acceso denegado: Solo Administradores o Supervisores.');
+
+          document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+          document.querySelectorAll('#main-nav button').forEach(el => el.classList.remove('active'));
+          
+          document.getElementById(`view-${view}`).classList.add('active');
+          document.getElementById(`nav-${view}`).classList.add('active');
+
+          if (view === 'pos') app.pos.init();
+          if (view === 'inventory') app.inventory.render();
+          if (view === 'reports') app.reports.render();
+          if (view === 'cash') app.cash.render();
+        }
+      },
+
+      auth: {
+        initUsers: async () => {
+          const count = await db.users.count();
+          if (count === 0) {
+            await db.users.bulkAdd([
+              { username: 'admin', password: '123', role: 'Administrador' },
+              { username: 'cajero1', password: '123', role: 'Cajero' },
+              { username: 'supervisor', password: '123', role: 'Supervisor' }
+            ]);
+          }
+        },
+        updateUserSelect: async () => {
+          const users = await db.users.toArray();
+          const select = document.getElementById('login-user');
+          select.innerHTML = users.map(u => `<option value="${u.username}">${u.username} (${u.role})</option>`).join('');
+        },
+        login: async () => {
+          const username = document.getElementById('login-user').value;
+          const pass = document.getElementById('login-pass').value;
+          const user = await db.users.get({ username: username, password: pass });
+          
+          if (user) {
+            app.currentUser = user;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('user-badge').innerText = `${user.username} [${user.role}]`;
+            app.router.nav('pos');
+          } else {
+            alert('Contraseña incorrecta');
+          }
+        },
+        logout: () => {
+          app.currentUser = null;
+          document.getElementById('login-pass').value = '';
+          document.getElementById('login-screen').style.display = 'flex';
+        }
+      },
+
+      pos: {
+        init: async () => {
+          app.pos.renderCategories();
+          app.pos.renderProducts();
+          app.pos.updateCartUI();
+        },
+        renderCategories: () => {
+          const cats = ['Todos', 'Mezcal', 'Artesanías', 'Textiles', 'Cerámica', 'Comestibles', 'Otros'];
+          const container = document.getElementById('pos-categories');
+          container.innerHTML = cats.map(c => `
+            <div class="cat-badge ${app.selectedCategory === c ? 'active' : ''}" onclick="app.pos.filterCat('${c}')">${c}</div>
+          `).join('');
+        },
+        filterCat: (cat) => {
+          app.selectedCategory = cat;
+          app.pos.renderCategories();
+          app.pos.renderProducts();
+        },
+        renderProducts: async () => {
+          const q = document.getElementById('pos-search').value.toLowerCase();
+          let prods = await db.products.toArray();
+          
+          if (app.selectedCategory !== 'Todos') {
+            prods = prods.filter(p => p.category === app.selectedCategory);
+          }
+          if (q) {
+            prods = prods.filter(p => p.name.toLowerCase().includes(q) || p.code.includes(q));
+          }
+
+          const container = document.getElementById('pos-products-list');
+          container.innerHTML = prods.map(p => {
+            const isLow = p.stock <= p.minStock;
+            return `
+              <div class="product-card" onclick="app.pos.addToCart(${p.id})">
+                <span class="stock-badge ${isLow ? 'stock-low' : ''}">Cant: ${p.stock}</span>
+                <div style="font-size:0.9rem; font-weight:500; padding-top:0.5rem;">${p.name}</div>
+                <div class="price">$${p.price.toFixed(2)}</div>
+              </div>
+            `;
+          }).join('');
+        },
+        addToCart: async (id) => {
+          const prod = await db.products.get(id);
+          if (!prod || prod.stock <= 0) return alert('Sin existencias en inventario');
+          
+          const existing = app.cart.find(item => item.product.id === id);
+          if (existing) {
+            if (existing.quantity >= prod.stock) return alert('Límite de stock alcanzado en carrito');
+            existing.quantity++;
+          } else {
+            app.cart.push({ product: prod, quantity: 1 });
+          }
+          app.pos.updateCartUI();
+        },
+        updateCartUI: () => {
+          const container = document.getElementById('cart-items-list');
+          let subtotal = 0;
+          
+          container.innerHTML = app.cart.map((item, idx) => {
+            const itemTotal = item.product.price * item.quantity;
+            subtotal += itemTotal;
+            return `
+              <div class="cart-item">
+                <div>
+                  <div><strong>${item.product.name}</strong></div>
+                  <div style="font-size:0.75rem; color:var(--texto-mutado)">$${item.product.price.toFixed(2)} x ${item.quantity}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <span>$${itemTotal.toFixed(2)}</span>
+                  <button class="btn btn-secondary" style="padding:0.2rem 0.5rem; width:auto; height:auto;" onclick="app.pos.removeFromCart(${idx})">X</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          document.getElementById('cart-subtotal').innerText = `$${subtotal.toFixed(2)}`;
+          document.getElementById('cart-total').innerText = `$${subtotal.toFixed(2)}`;
+        },
+        removeFromCart: (idx) => {
+          app.cart.splice(idx, 1);
+          app.pos.updateCartUI();
+        },
+        openPaymentModal: () => {
+          if (app.cart.length === 0) return alert('Carrito vacío');
+          const total = app.cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+          document.getElementById('pay-total').value = `$${total.toFixed(2)}`;
+          document.getElementById('pay-received').value = total;
+          document.getElementById('modal-payment').classList.add('active');
+          app.pos.togglePayMethod();
+          app.pos.calcChange();
+        },
+        togglePayMethod: () => {
+          const m = document.getElementById('pay-method').value;
+          document.getElementById('group-received').style.display = m === 'Efectivo' ? 'block' : 'none';
+          document.getElementById('group-change').style.display = m === 'Efectivo' ? 'block' : 'none';
+        },
+        calcChange: () => {
+          const total = parseFloat(document.getElementById('pay-total').value.replace('$', ''));
+          const rec = parseFloat(document.getElementById('pay-received').value) || 0;
+          const change = rec - total;
+          document.getElementById('pay-change').value = change >= 0 ? `$${change.toFixed(2)}` : 'Efectivo insuficiente';
+        },
+        processSale: async () => {
+          const total = parseFloat(document.getElementById('pay-total').value.replace('$', ''));
+          const method = document.getElementById('pay-method').value;
+          const rec = parseFloat(document.getElementById('pay-received').value) || 0;
+          
+          if (method === 'Efectivo' && rec < total) return alert('Monto recibido inválido');
+
+          // Registrar la venta en IndexedDB
+          const saleId = await db.sales.add({
+            timestamp: new Date().getTime(),
+            total: total,
+            method: method,
+            user: app.currentUser.username
+          });
+
+          // Descontar inventario y guardar detalles
+          for (let item of app.cart) {
+            await db.saleDetails.add({
+              saleId: saleId,
+              productId: item.product.id,
+              quantity: item.quantity,
+              price: item.product.price
+            });
+            await db.products.update(item.product.id, {
+              stock: item.product.stock - item.quantity
+            });
+          }
+
+          // Intentar Impresión de Ticket de Venta
+          await app.bt.printTicket({
+            id: saleId,
+            total: total,
+            method: method,
+            received: rec,
+            change: rec - total,
+            items: app.cart
+          });
+
+          app.cart = [];
+          document.getElementById('modal-payment').classList.remove('active');
+          app.pos.init();
+          alert('Venta procesada exitosamente');
+        }
+      },
+
+      inventory: {
+        render: async () => {
+          const prods = await db.products.toArray();
+          const tbody = document.getElementById('inventory-table-body');
+          tbody.innerHTML = prods.map(p => `
+            <tr>
+              <td>${p.code}</td>
+              <td><strong>${p.name}</strong></td>
+              <td>${p.category}</td>
+              <td>$${p.cost.toFixed(2)}</td>
+              <td>$${p.price.toFixed(2)}</td>
+              <td style="${p.stock <= p.minStock ? 'color:red; font-weight:bold;' : ''}">${p.stock} u</td>
+              <td>
+                <button class="btn btn-secondary" style="padding:0.25rem 0.5rem; width:auto; display:inline;" onclick="app.inventory.edit(${p.id})">Editar</button>
+              </td>
+            </tr>
+          `).join('');
+        },
+        openForm: () => {
+          document.getElementById('prod-modal-title').innerText = 'Nuevo Producto';
+          document.getElementById('prod-id').value = '';
+          document.getElementById('prod-code').value = '';
+          document.getElementById('prod-name').value = '';
+          document.getElementById('prod-cost').value = '';
+          document.getElementById('prod-price').value = '';
+          document.getElementById('prod-stock').value = '';
+          document.getElementById('modal-product').classList.add('active');
+        },
+        edit: async (id) => {
+          const p = await db.products.get(id);
+          document.getElementById('prod-modal-title').innerText = 'Editar Producto';
+          document.getElementById('prod-id').value = p.id;
+          document.getElementById('prod-code').value = p.code;
+          document.getElementById('prod-name').value = p.name;
+          document.getElementById('prod-cat').value = p.category;
+          document.getElementById('prod-cost').value = p.cost;
+          document.getElementById('prod-price').value = p.price;
+          document.getElementById('prod-stock').value = p.stock;
+          document.getElementById('prod-min').value = p.minStock;
+          document.getElementById('modal-product').classList.add('active');
+        },
+        save: async () => {
+          const id = document.getElementById('prod-id').value;
+          const data = {
+            code: document.getElementById('prod-code').value,
+            name: document.getElementById('prod-name').value,
+            category: document.getElementById('prod-cat').value,
+            cost: parseFloat(document.getElementById('prod-cost').value) || 0,
+            price: parseFloat(document.getElementById('prod-price').value) || 0,
+            stock: parseInt(document.getElementById('prod-stock').value) || 0,
+            minStock: parseInt(document.getElementById('prod-min').value) || 3
+          };
+
+          if (id) {
+            await db.products.update(parseInt(id), data);
+          } else {
+            await db.products.add(data);
+          }
+          document.getElementById('modal-product').classList.remove('active');
+          app.inventory.render();
+        }
+      },
+
+      reports: {
+        render: async () => {
+          const sales = await db.sales.toArray();
+          let totalDay = 0, cash = 0, card = 0;
+          
+          sales.forEach(s => {
+            totalDay += s.total;
+            if (s.method === 'Efectivo') cash += s.total;
+            else card += s.total;
+          });
+
+          document.getElementById('rep-day-total').innerText = `$${totalDay.toFixed(2)}`;
+          document.getElementById('rep-day-count').innerText = sales.length;
+          document.getElementById('rep-cash-total').innerText = `$${cash.toFixed(2)}`;
+          document.getElementById('rep-card-total').innerText = `$${card.toFixed(2)}`;
+
+          // Graficación Local limpia
+          const ctx = document.getElementById('chart-sales').getContext('2d');
+          if (window.myChart) window.myChart.destroy();
+          window.myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Efectivo', 'Tarjeta'],
+              datasets: [{
+                data: [cash, card],
+                backgroundColor: ['#1E5631', '#781D22']
+              }]
+            },
+            options: { responsive: true }
+          });
+        }
+      },
+
+      cash: {
+        render: async () => {
+          const sales = await db.sales.toArray();
+          const initial = parseFloat(document.getElementById('cash-initial').value) || 0;
+          let total = 0, cash = 0, card = 0;
+
+          sales.forEach(s => {
+            total += s.total;
+            if (s.method === 'Efectivo') cash += s.total;
+            else card += s.total;
+          });
+
+          const container = document.getElementById('cash-report-data');
+          container.innerHTML = `
+            <strong>Resumen de Operaciones:</strong><br>
+            Número de Transacciones: ${sales.length}<br>
+            Venta en Efectivo: $${cash.toFixed(2)}<br>
+            Venta en Tarjeta: $${card.toFixed(2)}<br>
+            <strong style="color:var(--verde-jade)">Total Neto Vendido: $${total.toFixed(2)}</strong><br>
+            <strong>Efectivo Total Estimado en Caja: $${(initial + cash).toFixed(2)}</strong>
+          `;
+        },
+        printCashCut: async () => {
+          const sales = await db.sales.toArray();
+          const initial = parseFloat(document.getElementById('cash-initial').value) || 0;
+          let total = 0, cash = 0, card = 0;
+          sales.forEach(s => {
+            total += s.total;
+            if (s.method === 'Efectivo') cash += s.total;
+            else card += s.total;
+          });
+
+          await app.bt.printRaw(`
+=== CORTE DE CAJA ===
+Estrellita POS
+Fecha: ${new Date().toLocaleDateString()}
+--------------------------------
+Fondo Inicial:  $${initial.toFixed(2)}
+Transacciones:  ${sales.length}
+Efectivo:       $${cash.toFixed(2)}
+Tarjeta:        $${card.toFixed(2)}
+--------------------------------
+TOTAL NETO:     $${total.toFixed(2)}
+Total en Caja:  $${(initial + cash).toFixed(2)}
+================================
+\n\n\n`);
+        },
+        performReset: async () => {
+          if (confirm('¿Está seguro de cerrar el día? Se limpiará el historial de ventas local.')) {
+            await db.sales.clear();
+            await db.saleDetails.clear();
+            app.cash.render();
+            alert('Caja reiniciada.');
+          }
+        }
+      },
+
+      config: {
+        initBiz: async () => {
+          const name = await db.config.get('biz_name') || { value: 'Estrellita' };
+          const addr = await db.config.get('biz_address') || { value: 'Mercado Porfirio Díaz, Oaxaca' };
+          
+          document.getElementById('cfg-biz-name').innerText = name.value;
+          document.getElementById('cfg-biz-desc').innerText = addr.value;
+          document.getElementById('cfg-name').value = name.value;
+          document.getElementById('cfg-address').value = addr.value;
+        },
+        saveBiz: async () => {
+          await db.config.put({ key: 'biz_name', value: document.getElementById('cfg-name').value });
+          await db.config.put({ key: 'biz_address', value: document.getElementById('cfg-address').value });
+          app.config.initBiz();
+          alert('Configuración guardada localmente');
+        },
+        exportBackup: async () => {
+          const data = {
+            products: await db.products.toArray(),
+            sales: await db.sales.toArray(),
+            users: await db.users.toArray()
+          };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `estrellita_backup_${new Date().toISOString().slice(0,10)}.json`;
+          a.click();
+        }
+      },
+
+      bt: {
+        connect: async () => {
+          try {
+            // Web Bluetooth API para Impresoras Térmicas Genéricas
+            app.printerDevice = await navigator.bluetooth.requestDevice({
+              filters: [{ description: 'MP210' }, { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+              optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+            });
+            const server = await app.printerDevice.gatt.connect();
+            const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+            
+            // Buscar la característica de escritura de datos
+            const characteristics = await service.getCharacteristics();
+            app.printerCharacteristic = characteristics[0];
+            
+            document.getElementById('printer-status').innerText = "Estado: Conectada a MP210";
+          } catch (err) {
+            console.warn("Bluetooth no conectado", err);
+            document.getElementById('printer-status').innerText = "Estado: No disponible/Sin soporte";
+          }
+        },
+        printRaw: async (text) => {
+          if (!app.printerCharacteristic) return;
+          const encoder = new TextEncoder();
+          const buffer = encoder.encode(text);
+          // Fragmentar envíos en chunks de 20 bytes para el estándar Bluetooth LE
+          for (let i = 0; i < buffer.length; i += 20) {
+            await app.printerCharacteristic.writeValue(buffer.slice(i, i + 20));
+          }
+        },
+        printTicket: async (ticket) => {
+          if (!app.printerCharacteristic) return;
+          const name = document.getElementById('cfg-biz-name').innerText;
+          const addr = document.getElementById('cfg-biz-desc').innerText;
+          
+          let itemsLines = "";
+          ticket.items.forEach(i => {
+            const row = `${i.product.name.substring(0, 18).padEnd(18)} ${i.quantity}x $${i.product.price.toFixed(0)}`;
+            itemsLines += row + "\n";
+          });
+
+          const rawESC = `
+      ${name.toUpperCase()}
+   ${addr}
+--------------------------------
+Ticket: #${ticket.id}
+Fecha: ${new Date().toLocaleString()}
+Atendió: ${app.currentUser.username}
+--------------------------------
+${itemsLines}
+--------------------------------
+TOTAL:          $${ticket.total.toFixed(2)}
+M. Pago:        ${ticket.method}
+Recibido:       $${ticket.received.toFixed(2)}
+Cambio:         $${ticket.change.toFixed(2)}
+--------------------------------
+ ¡Gracias por su visita!
+   Hecho en Oaxaca
+\n\n\n`;
+          await app.bt.printRaw(rawESC);
+        }
+      }
+    };
+
+    window.onload = () => app.init();
+  </script>
+</body>
+</html>
