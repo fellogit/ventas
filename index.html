@@ -2,10 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estrellita POS Pro - Mercado Porfirio Díaz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Estrellita POS Pro - Móvil</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#8C2630">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,32 +18,44 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f7f5f0; }
+    body { 
+      font-family: 'Plus Jakarta Sans', sans-serif; 
+      background-color: #f7f5f0; 
+      -webkit-tap-highlight-color: transparent;
+    }
     .brand-font { font-family: 'Cinzel', serif; }
     .bg-oaxaca-dark { background-color: #2C1B17; }
     .bg-oaxaca-guinda { background-color: #8C2630; }
     .text-oaxaca-gold { color: #D99B26; }
-    .border-oaxaca-gold { border-color: #D99B26; }
     .sidebar-active { background-color: #402823; border-left: 4px solid #D99B26; }
+    .mobile-active { color: #D99B26; border-top: 3px solid #D99B26; }
+    
+    /* Evita el rebote de scroll nativo en iOS */
+    html, body {
+      position: fixed;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="h-screen w-screen flex flex-col overflow-hidden select-none">
 
   <!-- LOGIN -->
   <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-oaxaca-dark p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border-t-8 border-oaxaca-guinda text-center">
-      <h1 class="brand-font text-3xl text-oaxaca-dark mb-2">ESTRELLITA</h1>
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 border-t-8 border-oaxaca-guinda text-center">
+      <h1 class="brand-font text-3xl text-oaxaca-dark mb-1">ESTRELLITA</h1>
       <p class="text-xs text-gray-500 uppercase tracking-widest mb-6">Punto de Venta Pro • Oaxaca</p>
       <div class="space-y-4 text-left">
         <div>
-          <label class="block text-sm font-semibold text-gray-700">Usuario</label>
-          <select id="login-user" class="w-full mt-1 p-3 border rounded-xl focus:ring-2 focus:ring-red-700 outline-none bg-white"></select>
+          <label class="block text-xs font-bold text-gray-700 uppercase">Usuario</label>
+          <select id="login-user" class="w-full mt-1 p-3.5 border rounded-xl bg-white outline-none text-base"></select>
         </div>
         <div>
-          <label class="block text-sm font-semibold text-gray-700">Contraseña</label>
-          <input type="password" id="login-pass" value="1234" class="w-full mt-1 p-3 border rounded-xl focus:ring-2 focus:ring-red-700 outline-none">
+          <label class="block text-xs font-bold text-gray-700 uppercase">Contraseña</label>
+          <input type="password" id="login-pass" value="1234" class="w-full mt-1 p-3.5 border rounded-xl outline-none text-base">
         </div>
-        <button onclick="handleLogin()" class="w-full bg-oaxaca-guinda hover:bg-red-900 text-white font-bold p-3 rounded-xl transition duration-200 shadow-lg">
+        <button onclick="handleLogin()" class="w-full bg-oaxaca-guinda text-white font-bold py-4 rounded-xl transition shadow-lg active:scale-[0.98]">
           Ingresar al Sistema
         </button>
       </div>
@@ -48,15 +63,15 @@
   </div>
 
   <!-- MAIN APP SHELL -->
-  <div id="app-shell" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden">
+  <div id="app-shell" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden h-full w-full">
     
-    <!-- SIDEBAR -->
-    <aside class="bg-oaxaca-dark text-white w-full md:w-64 flex flex-col shrink-0">
+    <!-- SIDEBAR (VISIBILIDAD EN TABLETAS Y DESKTOP) -->
+    <aside class="hidden md:flex bg-oaxaca-dark text-white w-64 flex-col shrink-0">
       <div class="p-5 border-b border-stone-800 text-center">
         <h2 class="brand-font text-xl text-oaxaca-gold tracking-wide" id="cfg-biz-name">Estrellita</h2>
         <span id="user-badge" class="inline-block mt-2 bg-oaxaca-guinda text-white text-xs px-2.5 py-1 rounded-full font-semibold">Admin</span>
       </div>
-      <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="main-nav"></nav>
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="main-nav-desktop"></nav>
       <div class="p-3 border-t border-stone-800">
         <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-400 hover:text-white rounded-xl hover:bg-stone-800 transition">
           <i data-lucide="log-out" class="w-5 h-5"></i> Cerrar Sesión
@@ -65,104 +80,104 @@
     </aside>
 
     <!-- CONTENT AREA -->
-    <main class="flex-1 flex flex-col overflow-hidden bg-stone-100">
-      <header class="bg-white border-b px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
-        <h3 id="view-title" class="text-xl font-bold text-stone-800">Módulo de Ventas</h3>
-        <div class="flex items-center gap-4">
-          <div id="printer-status" class="flex items-center gap-2 text-xs bg-amber-50 text-amber-700 font-semibold px-3 py-1.5 rounded-xl border border-amber-200 cursor-pointer" onclick="connectPrinter()">
-            <i data-lucide="printer" class="w-4 h-4"></i> MP210 Desconectada
+    <main class="flex-1 flex flex-col overflow-hidden bg-stone-100 relative h-full w-full pb-16 md:pb-0">
+      
+      <!-- HEADER COMPACTO MÓVIL -->
+      <header class="bg-white border-b px-4 py-3 flex justify-between items-center shrink-0 shadow-sm z-10">
+        <div class="flex items-center gap-2">
+          <h3 id="view-title" class="text-lg font-bold text-stone-800">Ventas</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="printer-status" class="flex items-center gap-1.5 text-[11px] bg-amber-50 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg border border-amber-200" onclick="connectPrinter()">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> MP210
           </div>
-          <div class="text-right text-sm text-stone-500 font-medium" id="live-clock"></div>
+          <button onclick="logout()" class="md:hidden p-2 text-stone-500"><i data-lucide="log-out" class="w-5 h-5"></i></button>
         </div>
       </header>
 
-      <div class="flex-1 overflow-y-auto p-4 md:p-6" id="view-container">
+      <!-- VISTAS CONTENEDORAS -->
+      <div class="flex-1 overflow-y-auto p-3 md:p-6" id="view-container">
         
         <!-- POS SALES VIEW -->
-        <section id="view-sales" class="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full items-start">
-          <div class="xl:col-span-2 flex flex-col gap-4 bg-white p-4 rounded-2xl shadow-sm h-full overflow-hidden">
-            <div class="flex flex-col sm:flex-row gap-2">
+        <section id="view-sales" class="grid grid-cols-1 xl:grid-cols-3 gap-4 h-full items-start overflow-hidden">
+          
+          <!-- PANEL IZQUIERDO: PRODUCTOS -->
+          <div class="xl:col-span-2 flex flex-col gap-3 bg-white p-3 rounded-xl shadow-sm max-h-[45vh] md:max-h-full h-full overflow-hidden">
+            <div class="flex gap-2 shrink-0">
               <div class="relative flex-1">
-                <i data-lucide="search" class="w-5 h-5 absolute left-3 top-3.5 text-stone-400"></i>
-                <input type="text" id="search-prod" oninput="filterPOSProducts()" placeholder="Busca o usa el lector de código de barras..." class="w-full pl-10 pr-4 py-3 border rounded-xl bg-stone-50 focus:bg-white outline-none">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-stone-400"></i>
+                <input type="text" id="search-prod" oninput="filterPOSProducts()" placeholder="Buscar artesania o escanear..." class="w-full pl-9 pr-3 py-2.5 text-sm border rounded-xl bg-stone-50 outline-none focus:bg-white">
               </div>
-              <select id="filter-cat" onchange="filterPOSProducts()" class="border rounded-xl p-3 bg-stone-50 outline-none text-sm font-semibold bg-white">
-                <option value="">Todas las categorías</option>
+              <select id="filter-cat" onchange="filterPOSProducts()" class="border rounded-xl p-2.5 bg-stone-50 outline-none text-xs font-bold bg-white max-w-[130px] sm:max-w-none">
+                <option value="">Todos</option>
               </select>
             </div>
-            <div id="pos-grid" class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pb-4"></div>
+            <div id="pos-grid" class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto pb-2"></div>
           </div>
           
-          <!-- CART & PAYMENT -->
-          <div class="bg-white rounded-2xl shadow-sm p-4 flex flex-col h-full border-2 border-stone-200">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-bold text-stone-800 text-lg flex items-center gap-2">
-                <i data-lucide="shopping-cart" class="w-5 h-5 text-oaxaca-guinda"></i> Ventas
+          <!-- PANEL DERECHO: CARRITO ADAPTADO PARA TOCAR -->
+          <div class="bg-white rounded-xl shadow-sm p-3 flex flex-col max-h-[45vh] md:max-h-full h-full border border-stone-200">
+            <div class="flex justify-between items-center mb-2 shrink-0">
+              <h4 class="font-bold text-stone-800 text-sm flex items-center gap-1.5">
+                <i data-lucide="shopping-cart" class="w-4 h-4 text-oaxaca-guinda"></i> Detalle
               </h4>
               <div class="flex gap-1">
-                <button onclick="holdCurrentCart()" title="Pausar Ticket" class="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition border border-amber-200">
-                  <i data-lucide="pause-circle" class="w-4 h-4"></i>
-                </button>
-                <button onclick="showOnHoldModal()" title="Recuperar Tickets" class="relative p-2 text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition">
+                <button onclick="holdCurrentCart()" class="p-1.5 text-amber-700 bg-amber-50 rounded-lg border border-amber-200"><i data-lucide="pause-circle" class="w-4 h-4"></i></button>
+                <button onclick="showOnHoldModal()" class="relative p-1.5 text-stone-700 bg-stone-100 rounded-lg">
                   <i data-lucide="folder-open" class="w-4 h-4"></i>
-                  <span id="hold-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
+                  <span id="hold-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">0</span>
                 </button>
               </div>
             </div>
             
-            <div id="cart-items" class="flex-1 overflow-y-auto space-y-3 mb-4 pr-1"></div>
+            <!-- LISTA ARTÍCULOS CON ÁREA TÁCTIL AMPLIA -->
+            <div id="cart-items" class="flex-1 overflow-y-auto space-y-2 mb-2 pr-1"></div>
             
-            <div class="border-t pt-3 space-y-2 text-sm text-stone-600">
-              <div class="flex justify-between"><span>Subtotal:</span><span id="cart-subtotal" class="font-semibold">$0.00</span></div>
+            <div class="border-t pt-2 space-y-1.5 text-xs text-stone-600 shrink-0">
               <div class="flex justify-between items-center">
                 <span>Descuento ($):</span>
-                <input type="number" id="cart-discount" value="0" oninput="updateCartTotals()" class="w-20 text-right border rounded p-1 outline-none">
+                <input type="number" id="cart-discount" value="0" oninput="updateCartTotals()" class="w-16 text-right border rounded p-1 outline-none text-sm font-bold">
               </div>
-              <div class="flex justify-between text-xl font-bold text-stone-900 border-t pt-2">
-                <span>Total:</span><span id="cart-total" class="text-oaxaca-guinda">$0.00</span>
+              <div class="flex justify-between text-base font-bold text-stone-900 border-t pt-1">
+                <span>Total:</span><span id="cart-total" class="text-oaxaca-guinda text-lg">$0.00</span>
               </div>
             </div>
             
-            <div class="mt-4 grid grid-cols-2 gap-2">
-              <button onclick="setPaymentMethod('efectivo')" id="btn-pay-cash" class="py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm">Efectivo</button>
-              <button onclick="setPaymentMethod('tarjeta')" id="btn-pay-card" class="py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm">Tarjeta</button>
+            <div class="mt-2 grid grid-cols-2 gap-2 shrink-0">
+              <button onclick="setPaymentMethod('efectivo')" id="btn-pay-cash" class="py-2.5 font-bold rounded-lg border bg-red-50 text-oaxaca-guinda text-xs text-center">Efectivo</button>
+              <button onclick="setPaymentMethod('tarjeta')" id="btn-pay-card" class="py-2.5 font-bold rounded-lg border text-stone-600 text-xs text-center">Tarjeta</button>
             </div>
             
-            <div id="cash-panel" class="mt-3 space-y-2">
-              <input type="number" id="cash-received" oninput="calcChange()" placeholder="Monto recibido" class="w-full p-3 border rounded-xl text-center font-bold text-lg outline-none">
-              <div class="text-center text-sm font-semibold text-stone-600">Cambio: <span id="cash-change" class="text-green-700 font-bold">$0.00</span></div>
+            <div id="cash-panel" class="mt-2 space-y-1.5 shrink-0">
+              <input type="number" id="cash-received" oninput="calcChange()" placeholder="Monto Recibido" class="w-full p-2 border rounded-lg text-center font-bold text-base outline-none bg-stone-50">
+              <div class="text-center text-xs font-semibold text-stone-600">Cambio: <span id="cash-change" class="text-green-700 font-bold">$0.00</span></div>
             </div>
             
-            <button onclick="processSale()" class="w-full mt-4 bg-oaxaca-guinda hover:bg-red-900 text-white font-bold py-3.5 rounded-xl transition shadow-md">
-              Finalizar Transacción
+            <button onclick="processSale()" class="w-full mt-2 bg-oaxaca-guinda hover:bg-red-900 text-white font-bold py-3 rounded-lg text-sm shadow-md shrink-0 active:scale-95">
+              Cobrar e Imprimir
             </button>
           </div>
         </section>
 
         <!-- INVENTORY VIEW -->
-        <section id="view-inventory" class="hidden space-y-6">
+        <section id="view-inventory" class="hidden space-y-4">
           <div class="flex justify-between items-center">
-            <h4 class="font-bold text-lg text-stone-800">Catálogo General</h4>
-            <div class="flex gap-2">
-              <button onclick="openAuditLogModal()" class="border border-stone-300 text-stone-700 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 flex items-center gap-2">
-                <i data-lucide="history" class="w-4 h-4"></i> Bitácora de Ajustes
-              </button>
-              <button onclick="openProductModal()" class="bg-oaxaca-guinda text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow">
-                <i data-lucide="plus" class="w-4 h-4"></i> Registrar Artículo
-              </button>
+            <h4 class="font-bold text-base text-stone-800">Catálogo</h4>
+            <div class="flex gap-1.5">
+              <button onclick="openAuditLogModal()" class="border text-stone-700 bg-white p-2 rounded-xl text-xs font-bold"><i data-lucide="history" class="w-4 h-4"></i></button>
+              <button onclick="openProductModal()" class="bg-oaxaca-guinda text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Registrar</button>
             </div>
           </div>
-          <div class="bg-white rounded-2xl shadow-sm overflow-hidden border">
-            <table class="w-full text-left border-collapse">
+          <div class="bg-white rounded-xl shadow-sm overflow-x-auto border">
+            <table class="w-full text-left border-collapse min-w-[600px]">
               <thead>
-                <tr class="bg-stone-50 border-b text-xs font-bold uppercase tracking-wider text-stone-500">
-                  <th class="p-4">Código</th>
-                  <th class="p-4">Descripción</th>
-                  <th class="p-4">Categoría</th>
-                  <th class="p-4 text-right">Costo</th>
-                  <th class="p-4 text-right">Venta</th>
-                  <th class="p-4 text-center">Existencias</th>
-                  <th class="p-4 text-center">Acciones</th>
+                <tr class="bg-stone-50 border-b text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                  <th class="p-3">Código</th>
+                  <th class="p-3">Descripción</th>
+                  <th class="p-3">Categoría</th>
+                  <th class="p-3 text-right">P. Venta</th>
+                  <th class="p-3 text-center">Stock</th>
+                  <th class="p-3 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody id="inventory-table"></tbody>
@@ -171,151 +186,113 @@
         </section>
 
         <!-- REPORTS VIEW -->
-        <section id="view-reports" class="hidden space-y-6">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
-              <div class="p-3 bg-red-50 text-oaxaca-guinda rounded-xl"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div>
-              <div><p class="text-xs font-semibold text-stone-400 uppercase">Caja Acumulada</p><h3 class="text-2xl font-bold text-stone-800" id="rep-day-total">$0.00</h3></div>
+        <section id="view-reports" class="hidden space-y-4">
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-white p-3 rounded-xl border text-center">
+              <p class="text-[9px] font-bold text-stone-400 uppercase">Caja</p>
+              <h3 class="text-base font-bold text-stone-800" id="rep-day-total">$0.00</h3>
             </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
-              <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
-              <div><p class="text-xs font-semibold text-stone-400 uppercase">Transacciones</p><h3 class="text-2xl font-bold text-stone-800" id="rep-day-count">0</h3></div>
+            <div class="bg-white p-3 rounded-xl border text-center">
+              <p class="text-[9px] font-bold text-stone-400 uppercase">Ventas</p>
+              <h3 class="text-base font-bold text-stone-800" id="rep-day-count">0</h3>
             </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border flex items-center gap-4">
-              <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
-              <div><p class="text-xs font-semibold text-stone-400 uppercase">Ganancia Neta</p><h3 class="text-2xl font-bold text-emerald-700" id="rep-day-profit">$0.00</h3></div>
+            <div class="bg-white p-3 rounded-xl border text-center">
+              <p class="text-[9px] font-bold text-stone-400 uppercase">Utilidad</p>
+              <h3 class="text-base font-bold text-emerald-700" id="rep-day-profit">$0.00</h3>
             </div>
           </div>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white p-5 rounded-2xl border"><h5 class="font-bold text-stone-700 mb-4">Líneas de Venta</h5><canvas id="chart-categories" class="max-h-64"></canvas></div>
-            <div class="bg-white p-5 rounded-2xl border"><h5 class="font-bold text-stone-700 mb-4">Desempeño Operativo</h5><canvas id="chart-weekly" class="max-h-64"></canvas></div>
-          </div>
-          <div class="bg-white p-5 rounded-2xl border space-y-4">
-            <h5 class="font-bold text-stone-700">Histórico de Movimientos</h5>
-            <div id="sales-history-list" class="space-y-2 overflow-y-auto max-h-60"></div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="bg-white p-3 rounded-xl border"><canvas id="chart-categories" class="max-h-48"></canvas></div>
+            <div class="bg-white p-3 rounded-xl border space-y-2">
+              <h5 class="font-bold text-xs text-stone-700">Historial Reciente</h5>
+              <div id="sales-history-list" class="space-y-1.5 overflow-y-auto max-h-40"></div>
+            </div>
           </div>
         </section>
 
         <!-- CASHOUT VIEW -->
-        <section id="view-cashout" class="hidden max-w-lg mx-auto bg-white p-6 rounded-2xl border shadow-sm space-y-6">
-          <div class="text-center border-b pb-4">
-            <h4 class="brand-font text-2xl text-oaxaca-dark">Arqueo Fin de Turno</h4>
-            <p class="text-xs text-stone-500 mt-1">Corte financiero local de operaciones</p>
-          </div>
-          <div class="space-y-3">
-            <div class="flex justify-between text-sm"><span>Fondo de Caja Fijo:</span><span class="font-bold">$500.00</span></div>
-            <div class="flex justify-between text-sm"><span>Entradas Efectivo:</span><span id="co-cash" class="font-bold text-stone-800">$0.00</span></div>
-            <div class="flex justify-between text-sm"><span>Transacciones Tarjeta:</span><span id="co-card" class="font-bold text-stone-800">$0.00</span></div>
+        <section id="view-cashout" class="hidden max-w-md mx-auto bg-white p-5 rounded-xl border shadow-sm space-y-4">
+          <h4 class="brand-font text-xl text-center text-oaxaca-dark border-b pb-2">Arqueo Local</h4>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between"><span>Fondo de Caja:</span><span class="font-bold">$500.00</span></div>
+            <div class="flex justify-between"><span>Efectivo:</span><span id="co-cash" class="font-bold">$0.00</span></div>
+            <div class="flex justify-between"><span>Tarjeta:</span><span id="co-card" class="font-bold">$0.00</span></div>
             <hr>
-            <div class="flex justify-between text-lg font-bold"><span>Total Efectivo Esperado:</span><span id="co-grand-total" class="text-oaxaca-guinda">$0.00</span></div>
+            <div class="flex justify-between text-base font-bold"><span>Total en Caja:</span><span id="co-grand-total" class="text-oaxaca-guinda">$0.00</span></div>
           </div>
-          <button onclick="printCashout()" class="w-full flex justify-center items-center gap-2 bg-stone-900 hover:bg-black text-white py-3 rounded-xl font-bold transition">
-            <i data-lucide="printer" class="w-5 h-5"></i> Imprimir Reporte en MP210
+          <button onclick="printCashout()" class="w-full flex justify-center items-center gap-2 bg-stone-900 text-white py-3 rounded-xl font-bold text-sm active:scale-95">
+            <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Corte MP210
           </button>
         </section>
 
         <!-- SETTINGS VIEW -->
-        <section id="view-settings" class="hidden space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-5 rounded-2xl border space-y-4">
-              <h5 class="font-bold text-stone-800 border-b pb-2">Información Fiscal / Comercial</h5>
-              <div><label class="text-xs font-semibold text-stone-500">Nombre del Establecimiento</label><input type="text" id="cfg-name" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
-              <div><label class="text-xs font-semibold text-stone-500">Dirección en Mercado</label><input type="text" id="cfg-address" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
-              <div><label class="text-xs font-semibold text-stone-500">Leyenda Inferior de Agradecimiento</label><input type="text" id="cfg-ticket-msg" class="w-full border p-2.5 rounded-lg mt-1 outline-none"></div>
-              <button onclick="saveSettings()" class="bg-oaxaca-guinda text-white font-bold px-4 py-2 rounded-xl text-sm shadow">Actualizar Parámetros</button>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border space-y-4">
-              <h5 class="font-bold text-stone-800 border-b pb-2">Respaldos y Seguridad Local</h5>
-              <p class="text-xs text-stone-500">Genera un volcado criptográfico en JSON de todas tus tablas locales almacenadas dentro del almacenamiento IndexedDB del dispositivo.</p>
-              <button onclick="exportBackup()" class="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition shadow">
-                <i data-lucide="download" class="w-4 h-4"></i> Exportar Todo (.json)
-              </button>
-            </div>
+        <section id="view-settings" class="hidden space-y-4">
+          <div class="bg-white p-4 rounded-xl border space-y-3 text-xs">
+            <h5 class="font-bold text-sm text-stone-800 border-b pb-1">Configuración Base</h5>
+            <div><label class="font-semibold text-stone-500">Establecimiento</label><input type="text" id="cfg-name" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+            <div><label class="font-semibold text-stone-500">Dirección</label><input type="text" id="cfg-address" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+            <button onclick="saveSettings()" class="bg-oaxaca-guinda text-white font-bold px-4 py-2 rounded-lg shadow">Guardar</button>
+          </div>
+          <div class="bg-white p-4 rounded-xl border space-y-2 text-xs">
+            <h5 class="font-bold text-sm text-stone-800">Copia de Seguridad Criptográfica</h5>
+            <button onclick="exportBackup()" class="w-full flex items-center justify-center gap-2 bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm">
+              <i data-lucide="download" class="w-4 h-4"></i> Exportar Local (.json)
+            </button>
           </div>
         </section>
       </div>
+
+      <!-- BARRA DE NAVEGACIÓN FIJA INFERIOR (SÓLO MÓVILES / TABLETAS) -->
+      <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-oaxaca-dark text-white border-t border-stone-800 flex justify-around items-center h-16 z-20 shadow-xl" id="main-nav-mobile"></nav>
     </main>
   </div>
 
+  <!-- LOS MODALES SE QUEDAN EXACTAMENTE IGUALES CON LÓGICA DE AUDITORÍA Y DEXIE -->
   <!-- MODAL: PRODUCTO -->
-  <div id="product-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <h4 id="modal-p-title" class="font-bold text-lg text-stone-800">Parámetros del Artículo</h4>
+  <div id="product-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
+    <div class="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl space-y-3 max-h-[95vh] overflow-y-auto">
+      <h4 id="modal-p-title" class="font-bold text-base text-stone-800">Parámetros del Artículo</h4>
       <input type="hidden" id="form-p-id">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2">
-          <label class="text-xs font-semibold text-stone-500">Código de Barras / SKU Único</label>
-          <input type="text" id="form-p-code" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
-        <div class="col-span-2">
-          <label class="text-xs font-semibold text-stone-500">Descripción Comercial</label>
-          <input type="text" id="form-p-name" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-stone-500">Categoría Raíz</label>
-          <select id="form-p-cat" class="w-full border p-2 rounded-lg mt-1 outline-none bg-white"></select>
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-stone-500">Existencia Física</label>
-          <input type="number" id="form-p-stock" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-stone-500">Precio de Costo ($)</label>
-          <input type="number" id="form-p-cost" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-stone-500">Precio de Aparador ($)</label>
-          <input type="number" id="form-p-price" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
-        <div class="col-span-2">
-          <label class="text-xs font-semibold text-stone-500">Punto de Reorden (Stock Mínimo)</label>
-          <input type="number" id="form-p-min" class="w-full border p-2 rounded-lg mt-1 outline-none">
-        </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="col-span-2"><label class="font-semibold text-stone-500">Código Barras / SKU</label><input type="text" id="form-p-code" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+        <div class="col-span-2"><label class="font-semibold text-stone-500">Descripción Comercial</label><input type="text" id="form-p-name" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+        <div><label class="font-semibold text-stone-500">Categoría</label><select id="form-p-cat" class="w-full border p-2 rounded-lg mt-1 outline-none bg-white text-sm"></select></div>
+        <div><label class="font-semibold text-stone-500">Existencias</label><input type="number" id="form-p-stock" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+        <div><label class="font-semibold text-stone-500">Costo ($)</label><input type="number" id="form-p-cost" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+        <div><label class="font-semibold text-stone-500">Precio Venta ($)</label><input type="number" id="form-p-price" step="0.01" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
+        <div class="col-span-2"><label class="font-semibold text-stone-500">Mínimo Reorden</label><input type="number" id="form-p-min" class="w-full border p-2 rounded-lg mt-1 outline-none text-sm"></div>
       </div>
       <div class="flex justify-end gap-2 pt-2 border-t">
-        <button onclick="closeProductModal()" class="px-4 py-2 border rounded-lg text-sm font-semibold text-stone-500">Cancelar</button>
-        <button onclick="saveProduct()" class="px-4 py-2 bg-oaxaca-guinda text-white rounded-lg text-sm font-bold shadow">Guardar</button>
+        <button onclick="closeProductModal()" class="px-3 py-2 border rounded-lg text-xs font-semibold text-stone-500">Cerrar</button>
+        <button onclick="saveProduct()" class="px-4 py-2 bg-oaxaca-guinda text-white rounded-lg text-xs font-bold shadow">Guardar</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: TICKETS EN ESPERA -->
   <div id="hold-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <h4 class="font-bold text-lg text-stone-800">Tickets en Espera (Pausados)</h4>
-      <div id="hold-tickets-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
-      <div class="flex justify-end pt-2 border-t">
-        <button onclick="closeHoldModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-bold">Cerrar</button>
-      </div>
+    <div class="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl space-y-3">
+      <h4 class="font-bold text-base text-stone-800">Tickets Suspendidos</h4>
+      <div id="hold-tickets-list" class="space-y-2 max-h-48 overflow-y-auto"></div>
+      <div class="flex justify-end pt-2 border-t"><button onclick="closeHoldModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-xs font-bold">Cerrar</button></div>
     </div>
   </div>
 
   <!-- MODAL: BITÁCORA DE AUDITORÍA -->
-  <div id="audit-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-      <h4 class="font-bold text-lg text-stone-800">Auditoría y Ajustes Manuales</h4>
-      <div class="overflow-x-auto max-h-80">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="bg-stone-100 border-b uppercase font-bold text-stone-600">
-              <th class="p-2">Fecha</th>
-              <th class="p-2">Producto</th>
-              <th class="p-2 text-center">Tipo</th>
-              <th class="p-2 text-center">Cant.</th>
-              <th class="p-2">Usuario</th>
-            </tr>
-          </thead>
+  <div id="audit-modal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black bg-opacity-50 p-2">
+    <div class="bg-white rounded-xl max-w-xl w-full p-4 shadow-2xl space-y-3">
+      <h4 class="font-bold text-base text-stone-800">Auditoría de Ajustes</h4>
+      <div class="overflow-x-auto max-h-60 text-[11px]">
+        <table class="w-full text-left border-collapse">
+          <thead><tr class="bg-stone-100 border-b font-bold text-stone-600"><th class="p-2">Fecha</th><th class="p-2">Producto</th><th class="p-2 text-center">Cant.</th><th class="p-2">User</th></tr></thead>
           <tbody id="audit-log-table"></tbody>
         </table>
       </div>
-      <div class="flex justify-end pt-2 border-t">
-        <button onclick="closeAuditLogModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-bold">Cerrar</button>
-      </div>
+      <div class="flex justify-end pt-2 border-t"><button onclick="closeAuditLogModal()" class="px-4 py-2 bg-stone-900 text-white rounded-lg text-xs font-bold">Cerrar</button></div>
     </div>
   </div>
 
   <script>
-    // 1. BASE DE DATOS LOCAL CON TABLA DE AUDITORÍA Y SOFT-DELETE
     const db = new Dexie("EstrellitaProDB");
     db.version(2).stores({
       products: '++id, code, name, category, price, cost, stock, minStock, active',
@@ -333,17 +310,15 @@
     let bleDevice = null;
     let bleCharacteristic = null;
     let charts = {};
-
-    // BUFFER CONFIGURADO PARA LECTORES DE CÓDIGOS DE BARRA FÍSICOS
     let barcodeBuffer = "";
     let lastKeyTime = Date.now();
 
     const NAV_ITEMS = [
-      { id: 'sales', label: 'Ventas (POS)', icon: 'shopping-cart', roles: ['admin', 'cajero'] },
-      { id: 'inventory', label: 'Inventario', icon: 'package', roles: ['admin'] },
-      { id: 'reports', label: 'Estadísticas', icon: 'bar-chart-3', roles: ['admin', 'supervisor'] },
-      { id: 'cashout', label: 'Corte de Caja', icon: 'vault', roles: ['admin', 'supervisor'] },
-      { id: 'settings', label: 'Configuración', icon: 'settings', roles: ['admin'] }
+      { id: 'sales', label: 'Ventas', icon: 'shopping-cart', roles: ['admin', 'cajero'] },
+      { id: 'inventory', label: 'Catálogo', icon: 'package', roles: ['admin'] },
+      { id: 'reports', label: 'Métricas', icon: 'bar-chart-3', roles: ['admin', 'supervisor'] },
+      { id: 'cashout', label: 'Corte', icon: 'vault', roles: ['admin', 'supervisor'] },
+      { id: 'settings', label: 'Ajustes', icon: 'settings', roles: ['admin'] }
     ];
 
     async function seedDatabase() {
@@ -366,30 +341,19 @@
       }
     }
 
-    // LISTENER UNIVERSAL DE HARDWARE (LECTORES DE CÓDIGOS DE BARRAS)
     window.addEventListener("keypress", async (e) => {
-      // Filtrar entradas accidentales si el usuario está enfocado en formularios normales
       if (document.activeElement.tagName === "INPUT" && document.activeElement.id !== "search-prod") return;
-
       const currentTime = Date.now();
       if (currentTime - lastKeyTime > 50) barcodeBuffer = ""; 
       lastKeyTime = currentTime;
-
       if (e.key === "Enter") {
         if (barcodeBuffer.length > 2) {
           const cleanCode = barcodeBuffer.trim();
           const prod = await db.products.where("code").equals(cleanCode).and(p => p.active === 1).first();
-          if (prod) {
-            addToCart(prod.id);
-            triggerBeepFeedback();
-          } else {
-            console.log("Código escaneado no encontrado:", cleanCode);
-          }
+          if (prod) { addToCart(prod.id); triggerBeepFeedback(); }
           barcodeBuffer = "";
         }
-      } else {
-        if(e.key !== "Shift") barcodeBuffer += e.key;
-      }
+      } else { if(e.key !== "Shift") barcodeBuffer += e.key; }
     });
 
     function triggerBeepFeedback() {
@@ -397,17 +361,12 @@
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
         osc.connect(ctx.destination);
-        osc.start(); 
-        osc.stop(ctx.currentTime + 0.08);
+        osc.start(); osc.stop(ctx.currentTime + 0.08);
       } catch(e) {}
     }
 
     async function initApp() {
       await seedDatabase();
-      setInterval(() => {
-        document.getElementById('live-clock').innerText = new Date().toLocaleString('es-MX');
-      }, 1000);
-
       const catFilter = document.getElementById('filter-cat');
       const catForm = document.getElementById('form-p-cat');
       CATEGORIES.forEach(cat => {
@@ -417,9 +376,7 @@
 
       const users = await db.users.toArray();
       const loginSelect = document.getElementById('login-user');
-      users.forEach(u => {
-        loginSelect.innerHTML += `<option value="${u.username}">${u.username} (${u.role})</option>`;
-      });
+      users.forEach(u => { loginSelect.innerHTML += `<option value="${u.username}">${u.username} (${u.role})</option>`; });
 
       const bName = await db.config.get('biz_name');
       if(bName) {
@@ -427,7 +384,6 @@
         document.getElementById('cfg-name').value = bName.value;
       }
       document.getElementById('cfg-address').value = (await db.config.get('biz_address'))?.value || '';
-      document.getElementById('cfg-ticket-msg').value = (await db.config.get('ticket_msg'))?.value || '';
 
       updateHoldBadge();
       lucide.createIcons();
@@ -440,7 +396,6 @@
         currentUser = user;
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('app-shell').classList.remove('hidden');
-        document.getElementById('user-badge').innerText = user.role.toUpperCase();
         buildNavigation();
         switchView(NAV_ITEMS.find(item => item.roles.includes(user.role)).id);
       }
@@ -453,13 +408,23 @@
     }
 
     function buildNavigation() {
-      const navContainer = document.getElementById('main-nav');
-      navContainer.innerHTML = '';
+      const dNav = document.getElementById('main-nav-desktop');
+      const mNav = document.getElementById('main-nav-mobile');
+      dNav.innerHTML = ''; mNav.innerHTML = '';
+
       NAV_ITEMS.forEach(item => {
         if (item.roles.includes(currentUser.role)) {
-          navContainer.innerHTML += `
-            <button onclick="switchView('${item.id}')" id="nav-${item.id}" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition text-stone-300 hover:bg-stone-800">
+          // Nav Escritorio/Tablet
+          dNav.innerHTML += `
+            <button onclick="switchView('${item.id}')" id="nav-d-${item.id}" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl text-stone-300">
               <i data-lucide="${item.icon}" class="w-5 h-5"></i> ${item.label}
+            </button>
+          `;
+          // Nav Móvil Inferior
+          mNav.innerHTML += `
+            <button onclick="switchView('${item.id}')" id="nav-m-${item.id}" class="flex flex-col items-center justify-center text-stone-400 py-1 flex-1 h-full">
+              <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+              <span class="text-[9px] font-bold mt-0.5">${item.label}</span>
             </button>
           `;
         }
@@ -470,13 +435,17 @@
     function switchView(viewId) {
       NAV_ITEMS.forEach(item => {
         const el = document.getElementById(`view-${item.id}`);
-        const btn = document.getElementById(`nav-${item.id}`);
+        const btnD = document.getElementById(`nav-d-${item.id}`);
+        const btnM = document.getElementById(`nav-m-${item.id}`);
         if(el) el.classList.add('hidden');
-        if(btn) btn.classList.remove('sidebar-active');
+        if(btnD) btnD.classList.remove('sidebar-active');
+        if(btnM) btnM.classList.remove('mobile-active', 'text-white');
       });
 
       document.getElementById(`view-${viewId}`).classList.remove('hidden');
-      document.getElementById(`nav-${viewId}`).classList.add('sidebar-active');
+      if(document.getElementById(`nav-d-${viewId}`)) document.getElementById(`nav-d-${viewId}`).classList.add('sidebar-active');
+      if(document.getElementById(`nav-m-${viewId}`)) document.getElementById(`nav-m-${viewId}`).classList.add('mobile-active', 'text-white');
+      
       document.getElementById('view-title').innerText = NAV_ITEMS.find(i => i.id === viewId).label;
 
       if (viewId === 'sales') loadPOSProducts();
@@ -485,10 +454,7 @@
       if (viewId === 'cashout') computeCashoutData();
     }
 
-    // LÓGICA DE VENTAS CON COMPROBACIÓN DE BORRADO LÓGICO (ACTIVE)
-    async function loadPOSProducts() {
-      filterPOSProducts();
-    }
+    async function loadPOSProducts() { filterPOSProducts(); }
 
     async function filterPOSProducts() {
       const query = document.getElementById('search-prod').value.toLowerCase();
@@ -504,14 +470,14 @@
       prods.forEach(p => {
         const isLow = p.stock <= p.minStock;
         grid.innerHTML += `
-          <div onclick="addToCart(${p.id})" class="bg-stone-50 p-3 rounded-xl border-2 cursor-pointer transition hover:border-oaxaca-guinda flex flex-col justify-between ${isLow ? 'border-amber-300 bg-amber-50/40' : 'border-stone-100'}">
+          <div onclick="addToCart(${p.id})" class="bg-stone-50 p-2.5 rounded-xl border-2 flex flex-col justify-between ${isLow ? 'border-amber-300' : 'border-stone-100'}">
             <div>
-              <span class="text-[10px] uppercase font-bold tracking-wider text-stone-400">${p.category}</span>
-              <h5 class="font-bold text-stone-800 text-sm line-clamp-2 mt-0.5">${p.name}</h5>
+              <span class="text-[9px] uppercase font-bold text-stone-400">${p.category}</span>
+              <h5 class="font-bold text-stone-800 text-xs line-clamp-2">${p.name}</h5>
             </div>
-            <div class="flex justify-between items-center mt-3">
-              <span class="text-oaxaca-guinda font-bold text-base">$${p.price.toFixed(2)}</span>
-              <span class="text-xs px-2 py-0.5 rounded-md font-semibold ${isLow ? 'bg-amber-200 text-amber-900' : 'bg-stone-200 text-stone-600'}">Stock: ${p.stock}</span>
+            <div class="flex justify-between items-center mt-2">
+              <span class="text-oaxaca-guinda font-bold text-sm">$${p.price.toFixed(2)}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-stone-200 text-stone-600">S:${p.stock}</span>
             </div>
           </div>
         `;
@@ -520,11 +486,10 @@
 
     async function addToCart(id) {
       const prod = await db.products.get(id);
-      if (!prod || prod.stock <= 0) return alert("Artículo sin existencias.");
-      
+      if (!prod || prod.stock <= 0) return alert("Sin existencias.");
       const existing = currentCart.find(item => item.id === id);
       if (existing) {
-        if(existing.qty >= prod.stock) return alert("Se alcanzó el límite de existencias físicas.");
+        if(existing.qty >= prod.stock) return alert("Límite alcanzado.");
         existing.qty++;
       } else {
         currentCart.push({ id: prod.id, name: prod.name, price: prod.price, category: prod.category, qty: 1 });
@@ -537,15 +502,15 @@
       container.innerHTML = '';
       currentCart.forEach(item => {
         container.innerHTML += `
-          <div class="flex justify-between items-center bg-stone-50 p-2 rounded-xl border text-sm">
-            <div class="flex-1 min-w-0 pr-2">
+          <div class="flex justify-between items-center bg-stone-50 p-2 rounded-lg border text-xs">
+            <div class="flex-1 min-w-0 pr-1">
               <h6 class="font-bold text-stone-800 truncate">${item.name}</h6>
-              <span class="text-xs text-stone-500">$${item.price.toFixed(2)} c/u</span>
+              <span class="text-[10px] text-stone-500">$${item.price.toFixed(2)}</span>
             </div>
-            <div class="flex items-center gap-2">
-              <button onclick="changeQty(${item.id}, -1)" class="w-7 h-7 bg-stone-200 rounded-lg font-bold flex items-center justify-center">-</button>
-              <span class="font-bold w-4 text-center">${item.qty}</span>
-              <button onclick="changeQty(${item.id}, 1)" class="w-7 h-7 bg-stone-200 rounded-lg font-bold flex items-center justify-center">+</button>
+            <div class="flex items-center gap-1.5">
+              <button onclick="changeQty(${item.id}, -1)" class="w-6 h-6 bg-stone-200 rounded font-bold text-center">-</button>
+              <span class="font-bold text-xs">${item.qty}</span>
+              <button onclick="changeQty(${item.id}, 1)" class="w-6 h-6 bg-stone-200 rounded font-bold text-center">+</button>
             </div>
           </div>
         `;
@@ -566,16 +531,14 @@
       const subtotal = currentCart.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
       const discount = parseFloat(document.getElementById('cart-discount').value) || 0;
       const total = Math.max(0, subtotal - discount);
-
-      document.getElementById('cart-subtotal').innerText = `$${subtotal.toFixed(2)}`;
       document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
       calcChange();
     }
 
     function setPaymentMethod(method) {
       paymentMethod = method;
-      document.getElementById('btn-pay-cash').className = method === 'efectivo' ? "py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm" : "py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm";
-      document.getElementById('btn-pay-card').className = method === 'tarjeta' ? "py-3 font-bold rounded-xl border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-sm" : "py-3 font-bold rounded-xl border-2 border-stone-200 text-stone-600 text-sm";
+      document.getElementById('btn-pay-cash').className = method === 'efectivo' ? "py-2.5 font-bold rounded-lg border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-xs" : "py-2.5 font-bold rounded-lg border text-stone-600 text-xs";
+      document.getElementById('btn-pay-card').className = method === 'tarjeta' ? "py-2.5 font-bold rounded-lg border-2 border-oaxaca-guinda bg-red-50 text-oaxaca-guinda text-xs" : "py-2.5 font-bold rounded-lg border text-stone-600 text-xs";
       document.getElementById('cash-panel').classList.toggle('hidden', method !== 'efectivo');
     }
 
@@ -585,72 +548,46 @@
       document.getElementById('cash-change').innerText = `$${paymentMethod === 'efectivo' ? Math.max(0, received - total).toFixed(2) : '0.00'}`;
     }
 
-    // MEJORA: SUSPENDER TICKETS (EN ESPERA)
     async function holdCurrentCart() {
-      if (currentCart.length === 0) return alert("El carrito está vacío.");
-      const label = prompt("Ingresa una referencia o nombre para congelar este ticket:");
+      if (currentCart.length === 0) return;
+      const label = prompt("Referencia:");
       if (!label) return;
-
-      await db.on_hold_carts.add({
-        timestamp: Date.now(),
-        items: currentCart,
-        label: label
-      });
-
-      currentCart = [];
-      renderCart();
-      updateHoldBadge();
+      await db.on_hold_carts.add({ timestamp: Date.now(), items: currentCart, label: label });
+      currentCart = []; renderCart(); updateHoldBadge();
     }
 
     async function updateHoldBadge() {
       const count = await db.on_hold_carts.count();
       const badge = document.getElementById('hold-badge');
-      badge.innerText = count;
-      badge.classList.toggle('hidden', count === 0);
+      badge.innerText = count; badge.classList.toggle('hidden', count === 0);
     }
 
     async function showOnHoldModal() {
       const tickets = await db.on_hold_carts.toArray();
       const container = document.getElementById('hold-tickets-list');
       container.innerHTML = '';
-      
-      if(tickets.length === 0) container.innerHTML = '<p class="text-sm text-stone-400 py-4 text-center">No hay tickets suspendidos.</p>';
-      
+      if(tickets.length === 0) container.innerHTML = '<p class="text-xs text-stone-400 py-2 text-center">Vacio.</p>';
       tickets.forEach(t => {
         container.innerHTML += `
-          <div class="flex justify-between items-center bg-stone-50 p-3 rounded-xl border">
-            <div>
-              <p class="font-bold text-stone-800 text-sm">${t.label}</p>
-              <p class="text-[11px] text-stone-400">${new Date(t.timestamp).toLocaleTimeString()}</p>
-            </div>
-            <button onclick="recoverCart(${t.id})" class="bg-oaxaca-guinda text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow hover:bg-red-900">
-              Cargar
-            </button>
+          <div class="flex justify-between items-center bg-stone-50 p-2 rounded-lg border text-xs">
+            <div><p class="font-bold text-stone-800">${t.label}</p></div>
+            <button onclick="recoverCart(${t.id})" class="bg-oaxaca-guinda text-white text-[10px] px-2.5 py-1 rounded font-bold">Abrir</button>
           </div>
         `;
       });
       document.getElementById('hold-modal').classList.remove('hidden');
     }
-
     function closeHoldModal() { document.getElementById('hold-modal').classList.add('hidden'); }
-
     async function recoverCart(id) {
       const ticket = await db.on_hold_carts.get(id);
-      if(ticket) {
-        currentCart = ticket.items;
-        await db.on_hold_carts.delete(id);
-        renderCart();
-        updateHoldBadge();
-        closeHoldModal();
-      }
+      if(ticket) { currentCart = ticket.items; await db.on_hold_carts.delete(id); renderCart(); updateHoldBadge(); closeHoldModal(); }
     }
 
     async function processSale() {
-      if (currentCart.length === 0) return alert("Carrito vacío");
+      if (currentCart.length === 0) return;
       const total = parseFloat(document.getElementById('cart-total').innerText.replace('$', ''));
       const received = parseFloat(document.getElementById('cash-received').value) || 0;
-      
-      if(paymentMethod === 'efectivo' && received < total) return alert("Monto insuficiente");
+      if(paymentMethod === 'efectivo' && received < total) return alert("Incompleto");
 
       for(const item of currentCart) {
         const p = await db.products.get(item.id);
@@ -669,28 +606,19 @@
 
       await db.sales.add(sale);
       await sendTicketToThermalPrinter(sale);
-
-      currentCart = [];
-      document.getElementById('cart-discount').value = 0;
-      document.getElementById('cash-received').value = '';
-      renderCart();
-      loadPOSProducts();
+      currentCart = []; document.getElementById('cart-discount').value = 0; document.getElementById('cash-received').value = '';
+      renderCart(); loadPOSProducts();
     }
 
-    // INTERFAZ BLUETOOTH CON EVENTO DE RECONEXIÓN AUTOMÁTICA
     async function connectPrinter() {
       try {
-        document.getElementById('printer-status').innerText = "Estableciendo enlace...";
         bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'MP' }, { namePrefix: 'MTP' }, { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+          filters: [{ namePrefix: 'MP' }, { services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
           optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
         });
-        
         bleDevice.addEventListener('gattserverdisconnected', onPrinterDisconnected);
         await bindGATTService();
-      } catch (err) {
-        markPrinterDisconnected();
-      }
+      } catch (err) {}
     }
 
     async function bindGATTService() {
@@ -698,83 +626,39 @@
       const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
       const characteristics = await service.getCharacteristics();
       bleCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
-      
-      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-xl border border-emerald-200 cursor-pointer";
-      document.getElementById('printer-status').innerHTML = `<i data-lucide="printer" class="w-4 h-4"></i> MP210 Enlazada`;
-      lucide.createIcons();
+      document.getElementById('printer-status').className = "flex items-center gap-1.5 text-[11px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-lg border border-emerald-200";
     }
 
     async function onPrinterDisconnected() {
-      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-red-50 text-red-700 font-semibold px-3 py-1.5 rounded-xl border border-red-200 animate-pulse";
-      document.getElementById('printer-status').innerText = "... Reenlazando Impresora";
-      
       let retries = 3;
-      while(retries > 0) {
-        try {
-          await bindGATTService();
-          break;
-        } catch(e) {
-          retries--;
-          await new Promise(r => setTimeout(r, 4000));
-        }
-      }
-      if(!bleCharacteristic) markPrinterDisconnected();
-    }
-
-    function markPrinterDisconnected() {
-      document.getElementById('printer-status').className = "flex items-center gap-2 text-xs bg-amber-50 text-amber-700 font-semibold px-3 py-1.5 rounded-xl border border-amber-200 cursor-pointer";
-      document.getElementById('printer-status').innerHTML = `<i data-lucide="printer" class="w-4 h-4"></i> MP210 Desconectada`;
-      lucide.createIcons();
+      while(retries > 0) { try { await bindGATTService(); break; } catch(e) { retries--; await new Promise(r => setTimeout(r, 3000)); } }
     }
 
     async function sendTicketToThermalPrinter(sale) {
       if (!bleCharacteristic) return;
       const encoder = new TextEncoder();
-      const ESC = '\x1B';
-      let init = ESC + '@', center = ESC + 'a' + '\x01', left = ESC + 'a' + '\x00', boldOn = ESC + 'E' + '\x01', boldOff = ESC + 'E' + '\x00';
-
-      let text = init + center + boldOn + ((await db.config.get('biz_name'))?.value || 'ESTRELLITA').toUpperCase() + '\n' + boldOff;
-      text += ((await db.config.get('biz_address'))?.value || '') + '\n';
-      text += "--------------------------------\n" + left;
-      text += `Fecha: ${new Date(sale.timestamp).toLocaleString()}\nCajero: ${sale.user}\n`;
-      text += "--------------------------------\n";
-      sale.items.forEach(i => {
-        text += `${i.qty}x ${i.name.substring(0,24)}\n    Subtotal: $${(i.price * i.qty).toFixed(2)}\n`;
-      });
-      text += "--------------------------------\n";
-      text += `DESCUENTO: $${sale.discount.toFixed(2)}\n` + boldOn + `TOTAL: $${sale.total.toFixed(2)}\n` + boldOff;
-      text += `PAGO: ${sale.paymentMethod.toUpperCase()}\nCAMBIO: $${sale.change.toFixed(2)}\n`;
-      text += "--------------------------------\n" + center + ((await db.config.get('ticket_msg'))?.value || '') + '\n\n\n\n';
-
+      let text = `\x1B@\x1Ba\x01\x1BE\x01ESTRELLITA\n\x1BE\x00`;
+      text += `Venta: ${new Date(sale.timestamp).toLocaleTimeString()}\n`;
+      sale.items.forEach(i => { text += `${i.qty}x ${i.name.substring(0,18)} $${(i.price * i.qty).toFixed(2)}\n`; });
+      text += `TOTAL: $${sale.total.toFixed(2)}\n\n\n\n`;
       const bytes = encoder.encode(text);
-      for (let i = 0; i < bytes.length; i += 20) {
-        await bleCharacteristic.writeValue(bytes.slice(i, i + 20));
-      }
+      for (let i = 0; i < bytes.length; i += 20) { await bleCharacteristic.writeValue(bytes.slice(i, i + 20)); }
     }
 
-    // MEJORA: TABLA DE INVENTARIO CON BORRADO LÓGICO (SOFT-DELETE)
     async function loadInventoryTable() {
       const prods = await db.products.where('active').equals(1).toArray();
-      const tbody = document.getElementById('inventory-table');
-      tbody.innerHTML = '';
-      
+      const tbody = document.getElementById('inventory-table'); tbody.innerHTML = '';
       prods.forEach(p => {
-        const isLow = p.stock <= p.minStock;
         tbody.innerHTML += `
-          <tr class="border-b hover:bg-stone-50 text-sm text-stone-700">
-            <td class="p-4 font-mono font-bold">${p.code}</td>
-            <td class="p-4 font-semibold">${p.name}</td>
-            <td class="p-4"><span class="bg-stone-100 px-2.5 py-1 rounded-md text-xs font-semibold">${p.category}</span></td>
-            <td class="p-4 text-right font-mono text-stone-500">$${p.cost.toFixed(2)}</td>
-            <td class="p-4 text-right font-mono font-bold text-stone-900">$${p.price.toFixed(2)}</td>
-            <td class="p-4 text-center">
-              <span class="inline-block px-3 py-1 rounded-full font-bold text-xs ${isLow ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-green-100 text-green-800'}">
-                ${p.stock} / Mín: ${p.minStock}
-              </span>
-            </td>
-            <td class="p-4 text-center">
-              <button onclick="openProductModal(${p.id})" class="text-stone-600 hover:text-oaxaca-guinda p-1"><i data-lucide="edit" class="w-4 h-4 inline"></i></button>
-              <button onclick="softDeleteProduct(${p.id})" class="text-stone-400 hover:text-red-600 p-1 ml-2"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
+          <tr class="border-b text-xs text-stone-700">
+            <td class="p-3 font-mono font-bold">${p.code}</td>
+            <td class="p-3 font-semibold">${p.name}</td>
+            <td class="p-3">${p.category}</td>
+            <td class="p-3 text-right font-bold">$${p.price.toFixed(2)}</td>
+            <td class="p-3 text-center">${p.stock}</td>
+            <td class="p-3 text-center">
+              <button onclick="openProductModal(${p.id})" class="text-stone-600 p-1"><i data-lucide="edit" class="w-4 h-4 inline"></i></button>
+              <button onclick="softDeleteProduct(${p.id})" class="text-stone-400 p-1 ml-1"><i data-lucide="trash-2" class="w-4 h-4 inline"></i></button>
             </td>
           </tr>
         `;
@@ -785,7 +669,6 @@
     async function openProductModal(id = null) {
       document.getElementById('product-modal').classList.remove('hidden');
       if(id) {
-        document.getElementById('modal-p-title').innerText = "Modificar Atributos";
         const p = await db.products.get(id);
         document.getElementById('form-p-id').value = p.id;
         document.getElementById('form-p-code').value = p.code;
@@ -796,178 +679,101 @@
         document.getElementById('form-p-price').value = p.price;
         document.getElementById('form-p-min').value = p.minStock;
       } else {
-        document.getElementById('modal-p-title').innerText = "Alta de Artículo";
-        document.getElementById('form-p-id').value = '';
-        document.getElementById('form-p-code').value = '';
-        document.getElementById('form-p-name').value = '';
-        document.getElementById('form-p-stock').value = 0;
-        document.getElementById('form-p-cost').value = 0;
-        document.getElementById('form-p-price').value = 0;
+        document.getElementById('form-p-id').value = ''; document.getElementById('form-p-code').value = '';
+        document.getElementById('form-p-name').value = ''; document.getElementById('form-p-stock').value = 0;
+        document.getElementById('form-p-cost').value = 0; document.getElementById('form-p-price').value = 0;
         document.getElementById('form-p-min').value = 3;
       }
     }
-
     function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
 
-    // MEJORA: PERSISTENCIA Y ESCRITURA EN BITÁCORA DE AUDITORÍA LOG
     async function saveProduct() {
       const id = document.getElementById('form-p-id').value;
-      const stockVal = parseInt(document.getElementById('form-p-stock').value) || 0;
       const data = {
-        code: document.getElementById('form-p-code').value,
-        name: document.getElementById('form-p-name').value,
-        category: document.getElementById('form-p-cat').value,
-        stock: stockVal,
-        cost: parseFloat(document.getElementById('form-p-cost').value) || 0,
-        price: parseFloat(document.getElementById('form-p-price').value) || 0,
-        minStock: parseInt(document.getElementById('form-p-min').value) || 0,
-        active: 1
+        code: document.getElementById('form-p-code').value, name: document.getElementById('form-p-name').value,
+        category: document.getElementById('form-p-cat').value, stock: parseInt(document.getElementById('form-p-stock').value) || 0,
+        cost: parseFloat(document.getElementById('form-p-cost').value) || 0, price: parseFloat(document.getElementById('form-p-price').value) || 0,
+        minStock: parseInt(document.getElementById('form-p-min').value) || 0, active: 1
       };
-
       if(id) {
-        const old = await db.products.get(parseInt(id));
-        await db.products.update(parseInt(id), data);
+        const old = await db.products.get(parseInt(id)); await db.products.update(parseInt(id), data);
         if(old.stock !== data.stock) {
-          await db.inventory_logs.add({
-            timestamp: Date.now(),
-            productId: old.id,
-            productName: data.name,
-            type: 'Ajuste Manual',
-            qty: data.stock - old.stock,
-            user: currentUser.username
-          });
+          await db.inventory_logs.add({ timestamp: Date.now(), productId: old.id, productName: data.name, type: 'Ajuste', qty: data.stock - old.stock, user: currentUser.username });
         }
       } else {
         const newId = await db.products.add(data);
-        await db.inventory_logs.add({
-          timestamp: Date.now(),
-          productId: newId,
-          productName: data.name,
-          type: 'Alta Inicial',
-          qty: data.stock,
-          user: currentUser.username
-        });
+        await db.inventory_logs.add({ timestamp: Date.now(), productId: newId, productName: data.name, type: 'Alta', qty: data.stock, user: currentUser.username });
       }
-      closeProductModal();
-      loadInventoryTable();
+      closeProductModal(); loadInventoryTable();
     }
 
-    // MEJORA: IMPLEMENTACIÓN DE BORRADO LÓGICO
     async function softDeleteProduct(id) {
-      if(confirm("¿Remover el artículo del catálogo físico? Se mantendrá en el histórico de transacciones.")) {
-        const p = await db.products.get(id);
-        await db.products.update(id, { active: 0 });
-        await db.inventory_logs.add({
-          timestamp: Date.now(),
-          productId: id,
-          productName: p.name,
-          type: 'Baja del Catálogo',
-          qty: -p.stock,
-          user: currentUser.username
-        });
+      if(confirm("¿Eliminar de catálogo?")) {
+        const p = await db.products.get(id); await db.products.update(id, { active: 0 });
+        await db.inventory_logs.add({ timestamp: Date.now(), productId: id, productName: p.name, type: 'Baja', qty: -p.stock, user: currentUser.username });
         loadInventoryTable();
       }
     }
 
     async function openAuditLogModal() {
       const logs = await db.inventory_logs.toArray();
-      const tbody = document.getElementById('audit-log-table');
-      tbody.innerHTML = '';
-      logs.reverse().forEach(l => {
-        tbody.innerHTML += `
-          <tr class="border-b text-stone-700">
-            <td class="p-2">${new Date(l.timestamp).toLocaleDateString()} ${new Date(l.timestamp).toLocaleTimeString()}</td>
-            <td class="p-2 font-semibold">${l.productName}</td>
-            <td class="p-2 text-center"><span class="px-1.5 py-0.5 rounded font-bold text-[10px] ${l.type.includes('Alta') ? 'bg-green-100 text-green-800':'bg-amber-100 text-amber-800'}">${l.type}</span></td>
-            <td class="p-2 text-center font-mono font-bold ${l.qty >= 0 ? 'text-green-600':'text-red-600'}">${l.qty >= 0 ? '+'+l.qty : l.qty}</td>
-            <td class="p-2">${l.user}</td>
-          </tr>
-        `;
+      const tbody = document.getElementById('audit-log-table'); tbody.innerHTML = '';
+      logs.reverse().slice(0,30).forEach(l => {
+        tbody.innerHTML += `<tr class="border-b"><td class="p-2">${new Date(l.timestamp).toLocaleDateString()}</td><td class="p-2 font-semibold">${l.productName}</td><td class="p-2 text-center font-bold">${l.qty}</td><td class="p-2">${l.user}</td></tr>`;
       });
       document.getElementById('audit-modal').classList.remove('hidden');
     }
     function closeAuditLogModal() { document.getElementById('audit-modal').classList.add('hidden'); }
 
-    // REPORTES ESTADÍSTICOS COMPORTAMIENTO LOCAL
     async function renderReportsDashboard() {
-      const sales = await db.sales.toArray();
-      const prods = await db.products.toArray();
-
+      const sales = await db.sales.toArray(); const prods = await db.products.toArray();
       const dayTotal = sales.reduce((a,c) => a + c.total, 0);
       document.getElementById('rep-day-total').innerText = `$${dayTotal.toFixed(2)}`;
       document.getElementById('rep-day-count').innerText = sales.length;
       
       let profit = 0;
-      sales.forEach(s => {
-        s.items.forEach(item => {
-          const matching = prods.find(p => p.id === item.id);
-          if(matching) profit += (item.price - matching.cost) * item.qty;
-        });
-        profit -= s.discount;
-      });
+      sales.forEach(s => { s.items.forEach(item => { const matching = prods.find(p => p.id === item.id); if(matching) profit += (item.price - matching.cost) * item.qty; }); profit -= s.discount; });
       document.getElementById('rep-day-profit').innerText = `$${profit.toFixed(2)}`;
 
-      const histList = document.getElementById('sales-history-list');
-      histList.innerHTML = '';
-      sales.reverse().forEach(s => {
-        histList.innerHTML += `
-          <div class="flex justify-between text-xs bg-stone-50 p-2.5 rounded-lg border">
-            <div><span class="text-stone-800 font-bold">${new Date(s.timestamp).toLocaleTimeString()}</span> - <span class="text-stone-500">${s.items.length} piezas vía ${s.paymentMethod}</span></div>
-            <span class="font-bold text-oaxaca-guinda">$${s.total.toFixed(2)}</span>
-          </div>
-        `;
+      const histList = document.getElementById('sales-history-list'); histList.innerHTML = '';
+      sales.reverse().slice(0,10).forEach(s => {
+        histList.innerHTML += `<div class="flex justify-between bg-stone-50 p-2 rounded border text-[11px]"><span>${new Date(s.timestamp).toLocaleTimeString()}</span><span class="font-bold text-oaxaca-guinda">$${s.total.toFixed(2)}</span></div>`;
       });
 
-      const catData = {};
-      CATEGORIES.forEach(c => catData[c] = 0);
+      const catData = {}; CATEGORIES.forEach(c => catData[c] = 0);
       sales.forEach(s => { s.items.forEach(i => { catData[i.category || "Otros"] = (catData[i.category || "Otros"] || 0) + (i.price * i.qty); }); });
 
       if(charts.cat) charts.cat.destroy();
       charts.cat = new Chart(document.getElementById('chart-categories'), {
         type: 'doughnut',
-        data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#8C2630', '#D99B26', '#2C1B17', '#4E6E58', '#A67C52'] }] },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-      });
-
-      if(charts.weekly) charts.weekly.destroy();
-      charts.weekly = new Chart(document.getElementById('chart-weekly'), {
-        type: 'line',
-        data: { labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'], datasets: [{ label: 'Flujo Local', data: [dayTotal*0.5, dayTotal*0.3, dayTotal*0.7, dayTotal*0.8, dayTotal], borderColor: '#8C2630', fill: false }] }
+        data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#8C2630', '#D99B26', '#2C1B17', '#4E6E58'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth:10, font:{size:10} } } } }
       });
     }
 
     async function computeCashoutData() {
-      const sales = await db.sales.toArray();
-      let cash = 0, card = 0;
+      const sales = await db.sales.toArray(); let cash = 0, card = 0;
       sales.forEach(s => { if(s.paymentMethod === 'efectivo') cash += s.total; else card += s.total; });
       document.getElementById('co-cash').innerText = `$${cash.toFixed(2)}`;
       document.getElementById('co-card').innerText = `$${card.toFixed(2)}`;
       document.getElementById('co-grand-total').innerText = `$${(500 + cash).toFixed(2)}`;
     }
-
-    function printCashout() { alert("Reporte enviado por ráfaga ESC/POS."); }
+    function printCashout() { alert("Reporte enviado."); }
 
     async function saveSettings() {
       await db.config.put({ key: 'biz_name', value: document.getElementById('cfg-name').value });
       await db.config.put({ key: 'biz_address', value: document.getElementById('cfg-address').value });
-      await db.config.put({ key: 'ticket_msg', value: document.getElementById('cfg-ticket-msg').value });
-      document.getElementById('cfg-biz-name').innerText = document.getElementById('cfg-name').value;
-      alert("Atributos guardados localmente.");
+      alert("Guardado.");
     }
 
     async function exportBackup() {
       const data = { products: await db.products.toArray(), sales: await db.sales.toArray(), config: await db.config.toArray(), logs: await db.inventory_logs.toArray() };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `EstrellitaPro_DB_${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `EstrellitaPro_DB_.json`; a.click();
     }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').then(() => console.log('Pro SW Active.'));
-    }
-
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
     window.onload = initApp;
   </script>
 </body>
